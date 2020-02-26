@@ -2,6 +2,7 @@ package regions
 
 import (
 	"bufio"
+	"context"
 	"encoding/csv"
 	"fmt"
 	"io"
@@ -14,8 +15,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
+	"../application"
 	"../countries"
-	"../database"
 	"../datatypes"
 )
 
@@ -23,9 +24,12 @@ import (
 
 // Regions represents the connection to the database
 type Regions struct {
-	database   *database.Context
+	dbClient   *mongo.Client
+	dbContext  context.Context
 	collection *mongo.Collection
 	countries  *countries.Countries
+	csvFile    string
+	maxResults int64
 }
 
 // Region is the external representation for an ISO-Region including both a bson (for mongo)
@@ -51,15 +55,18 @@ type insertRegion struct {
 }
 
 // NewRegions establishes the connection to the database
-func NewRegions(context *database.Context, countries *countries.Countries) *Regions {
+func NewRegions(application *application.Context, countries *countries.Countries) *Regions {
 	regions := Regions{
-		database:  context,
-		countries: countries}
+		dbClient:   application.DBClient,
+		dbContext:  application.DBContext,
+		csvFile:    application.RegionsCSV,
+		countries:  countries,
+		maxResults: application.MaxResults}
 
 	// Region Collection
-	regions.collection = context.Client.Database("flight-schedule").Collection("regions")
+	regions.collection = application.DBClient.Database("flight-schedule").Collection("regions")
 	regionIndex := mongo.IndexModel{Keys: bson.M{"iso-region-code": 1}}
-	regions.collection.Indexes().CreateOne(context.Context, regionIndex)
+	regions.collection.Indexes().CreateOne(application.DBContext, regionIndex)
 
 	return &regions
 }
@@ -73,7 +80,7 @@ func (regions *Regions) GetByRegionCode(regionCode string) (*Region, error) {
 		return nil, err
 	}
 
-	err = regions.collection.FindOne(regions.database.Context,
+	err = regions.collection.FindOne(regions.dbContext,
 		bson.D{{Key: "iso-region-code", Value: regionCode}}).Decode(&result)
 
 	if err != nil {
@@ -115,22 +122,22 @@ func (regions *Regions) GetList(countryCode string, fromRegionCode string, until
 	}
 
 	findOptions := options.Find()
-	findOptions.SetLimit(regions.database.MaxResults + 1)
+	findOptions.SetLimit(regions.maxResults + 1)
 
-	cur, err := regions.collection.Find(regions.database.Context, query, findOptions)
+	cur, err := regions.collection.Find(regions.dbContext, query, findOptions)
 	if err != nil {
 		return nil, fmt.Errorf("Not found")
 	}
 
-	for cur.Next(regions.database.Context) {
+	for cur.Next(regions.dbContext) {
 		var region Region
 		cur.Decode(&region)
 		result = append(result, &region)
 	}
 
-	cur.Close(regions.database.Context)
+	cur.Close(regions.dbContext)
 
-	if int64(len(result)) > regions.database.MaxResults {
+	if int64(len(result)) > regions.maxResults {
 		return nil, fmt.Errorf("Too many results")
 	}
 
@@ -170,7 +177,7 @@ func (regions *Regions) importCSVLine(line []string, lineNumber int) error {
 
 	// Dump in mongo
 	_, err = regions.collection.UpdateOne(
-		regions.database.Context,
+		regions.dbContext,
 		bson.D{{Key: "iso-region-code", Value: region.RegionCode}},
 		bson.M{"$set": region},
 		options.Update().SetUpsert(true))
@@ -185,7 +192,12 @@ func (regions *Regions) importCSVLine(line []string, lineNumber int) error {
 // ImportCSV initializes the database from a CSV-file
 func (regions *Regions) ImportCSV() error {
 	// Open the regions.csv file
-	csvFile, _ := os.Open("regions.csv")
+	csvFile, err := os.Open(regions.csvFile)
+	if err != nil {
+		return err
+	}
+	defer csvFile.Close()
+
 	reader := csv.NewReader(bufio.NewReader(csvFile))
 
 	// Skip the headerline

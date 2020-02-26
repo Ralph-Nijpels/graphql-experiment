@@ -12,8 +12,8 @@ import (
 // Context describes the environment of the application including
 // permanent connections and defaults
 type Context struct {
-	Client         *mongo.Client
-	Context        context.Context
+	DBClient       *mongo.Client
+	DBContext      context.Context
 	MaxResults     int64
 	CountriesCSV   string
 	RegionsCSV     string
@@ -75,8 +75,8 @@ func GetContext() (*Context, error) {
 
 	// Compose result
 	context := Context{
-		Client:         client,
-		Context:        context.TODO(),
+		DBClient:       client,
+		DBContext:      context.TODO(),
 		MaxResults:     250,
 		CountriesCSV:   applicationOptions.CountriesCSV,
 		RegionsCSV:     applicationOptions.RegionsCSV,

@@ -1,4 +1,5 @@
 {
     "database": "mongodb://localhost:27017",
-    "countries-csv": "etc\\countries.csv"
+    "countries-csv": "etc\\countries.csv",
+    "regions-csv": "etc\\regions.csv"
 }
