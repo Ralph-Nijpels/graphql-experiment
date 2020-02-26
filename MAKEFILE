@@ -1,0 +1,45 @@
+# Echoing all commands gets boring
+.SILENT:
+
+# Makefile created by someone seriously out of shape
+# so this makefile is seriously simplistic and inefficient (but works for now)
+BIN = bin
+SRC = src
+
+all: \
+	gorilla-mux \
+	mongo-driver \
+	$(BIN)\data-loader.exe \
+	$(BIN)\geography-rest.exe
+	echo Done!
+
+gorilla-mux:
+	echo Gorilla-mux..
+	go get github.com/gorilla/mux
+
+mongo-driver:
+	echo Mongo-driver..
+	go get go.mongodb.org/mongo-driver/mongo
+
+$(BIN)\data-loader.exe: \
+	$(SRC)\data-loader\main.go \
+	$(SRC)\database\database.go \
+	$(SRC)\datatypes\datatypes.go \
+	$(SRC)\airports\airports.go \
+	$(SRC)\airports\runways.go \
+	$(SRC)\countries\countries.go \
+	$(SRC)\regions\regions.go
+	echo Data-loader..
+	go build -o $(BIN)\data-loader.exe $(SRC)\data-loader\main.go
+
+$(BIN)\geography-rest.exe: \
+	$(SRC)\geography-rest\main.go \
+	$(SRC)\database\database.go \
+	$(SRC)\datatypes\datatypes.go \
+	$(SRC)\airports\airports.go \
+	$(SRC)\airports\runways.go \
+	$(SRC)\countries\countries.go \
+	$(SRC)\regions\regions.go
+	echo Geography-rest..
+	go build -o $(BIN)\geography-rest.exe $(SRC)\geography-rest\main.go
+
