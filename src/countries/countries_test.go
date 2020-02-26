@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"../database"
+	"../application"
 )
 
 func TestGetList(t *testing.T) {
@@ -20,7 +20,7 @@ func TestGetList(t *testing.T) {
 		{"US", "", true},
 		{"NL", "NL", true}}
 
-	context, err := database.NewContext()
+	context, err := application.GetContext()
 	if err != nil {
 		t.Errorf("Internal error: [%v]", err)
 	}
@@ -50,7 +50,7 @@ func TestGetByCountryCode(t *testing.T) {
 		{"XX", false},
 	}
 
-	context, err := database.NewContext()
+	context, err := application.GetContext()
 	if err != nil {
 		t.Errorf("Internal error: [%v]", err)
 	}

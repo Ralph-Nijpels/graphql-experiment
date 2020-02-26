@@ -23,6 +23,7 @@ mongo-driver:
 
 $(BIN)\data-loader.exe: \
 	$(SRC)\data-loader\main.go \
+	$(SRC)\application\application.go \
 	$(SRC)\database\database.go \
 	$(SRC)\datatypes\datatypes.go \
 	$(SRC)\airports\airports.go \
@@ -34,6 +35,7 @@ $(BIN)\data-loader.exe: \
 
 $(BIN)\geography-rest.exe: \
 	$(SRC)\geography-rest\main.go \
+	$(SRC)\application\application.go \
 	$(SRC)\database\database.go \
 	$(SRC)\datatypes\datatypes.go \
 	$(SRC)\airports\airports.go \

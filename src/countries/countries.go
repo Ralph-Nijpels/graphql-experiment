@@ -12,7 +12,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	"../database"
+	"../application"
 	"../datatypes"
 )
 
@@ -20,7 +20,7 @@ import (
 
 // Countries is the representation of the Countries Collection in the database
 type Countries struct {
-	database   *database.Context
+	context    *application.Context
 	collection *mongo.Collection
 }
 
@@ -45,13 +45,13 @@ type insertCountry struct {
 }
 
 // NewCountries instantiates the connection to the database collection
-func NewCountries(context *database.Context) *Countries {
-	countries := Countries{database: context}
+func NewCountries(application *application.Context) *Countries {
+	countries := Countries{context: application}
 
 	// Country Collection
-	countries.collection = context.Client.Database("flight-schedule").Collection("countries")
+	countries.collection = application.Client.Database("flight-schedule").Collection("countries")
 	countryIndex := mongo.IndexModel{Keys: bson.M{"iso-country-code": 1}}
-	countries.collection.Indexes().CreateOne(context.Context, countryIndex)
+	countries.collection.Indexes().CreateOne(application.Context, countryIndex)
 
 	return &countries
 }
@@ -65,7 +65,7 @@ func (countries *Countries) GetByCountryCode(countryCode string) (*Country, erro
 		return nil, err
 	}
 
-	err = countries.collection.FindOne(countries.database.Context,
+	err = countries.collection.FindOne(countries.context.Context,
 		bson.D{{Key: "iso-country-code", Value: countryCode}}).Decode(&result)
 
 	if err != nil {
@@ -99,22 +99,22 @@ func (countries *Countries) GetList(fromCountryCode string, untilCountryCode str
 	}
 
 	findOptions := options.Find()
-	findOptions.SetLimit(countries.database.MaxResults + 1)
+	findOptions.SetLimit(countries.context.MaxResults + 1)
 
-	cur, err := countries.collection.Find(countries.database.Context, query, findOptions)
+	cur, err := countries.collection.Find(countries.context.Context, query, findOptions)
 	if err != nil {
 		return nil, fmt.Errorf("Not found")
 	}
 
-	for cur.Next(countries.database.Context) {
+	for cur.Next(countries.context.Context) {
 		var country Country
 		cur.Decode(&country)
 		result = append(result, &country)
 	}
 
-	cur.Close(countries.database.Context)
+	cur.Close(countries.context.Context)
 
-	if int64(len(result)) > countries.database.MaxResults {
+	if int64(len(result)) > countries.context.MaxResults {
 		return nil, fmt.Errorf("Too many results")
 	}
 
@@ -146,7 +146,7 @@ func (countries *Countries) importCSVLine(line []string, lineNumber int) error {
 	}
 
 	// Dump in mongo
-	_, err = countries.collection.UpdateOne(countries.database.Context,
+	_, err = countries.collection.UpdateOne(countries.context.Context,
 		bson.D{{Key: "iso-country-code", Value: country.CountryCode}},
 		bson.M{"$set": country},
 		options.Update().SetUpsert(true))
@@ -161,7 +161,10 @@ func (countries *Countries) importCSVLine(line []string, lineNumber int) error {
 // ImportCSV imports a list of countries from a CSV-file
 func (countries *Countries) ImportCSV() error {
 	// Open the country.csv file
-	csvFile, _ := os.Open("countries.csv")
+	csvFile, err := os.Open(countries.context.CountriesCSV)
+	if err != nil {
+		return err
+	}
 	defer csvFile.Close()
 
 	reader := csv.NewReader(bufio.NewReader(csvFile))

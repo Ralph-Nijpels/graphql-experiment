@@ -13,47 +13,47 @@ import (
 	"fmt"
 	"log"
 
-	"../airports"
+	"../application"
 	"../countries"
-	"../database"
-	"../regions"
 )
 
 func main() {
 
-	fmt.Println("Connecting to MongoDB..")
-	mongoClient, err := database.NewContext()
+	fmt.Println("Initializing..")
+	context, err := application.GetContext()
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	fmt.Printf("%v\n", *context)
+
 	fmt.Println("Loading countries..")
-	countries := countries.NewCountries(mongoClient)
+	countries := countries.NewCountries(context)
 	err = countries.ImportCSV()
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	fmt.Println("Loading regions..")
-	regions := regions.NewRegions(mongoClient, countries)
-	err = regions.ImportCSV()
-	if err != nil {
-		log.Fatal(err)
-	}
+	//	regions := regions.NewRegions(context, countries)
+	//	err = regions.ImportCSV()
+	//	if err != nil {
+	//		log.Fatal(err)
+	//	}
 
 	fmt.Println("Loading airports..")
-	airports := airports.NewAirports(mongoClient, countries, regions)
-	err = airports.ImportCSV()
-	if err != nil {
-		log.Fatal(err)
-	}
+	//	airports := airports.NewAirports(context, countries, regions)
+	//	err = airports.ImportCSV()
+	//	if err != nil {
+	//		log.Fatal(err)
+	//	}
 
 	fmt.Println("Loading runways..")
-	runways := airports.NewRunways()
-	err = runways.ImportCSV()
-	if err != nil {
-		log.Fatal(err)
-	}
+	//	runways := airports.NewRunways()
+	//	err = runways.ImportCSV()
+	//	if err != nil {
+	//		log.Fatal(err)
+	//	}
 
 	fmt.Println("Data loaded.")
 }
