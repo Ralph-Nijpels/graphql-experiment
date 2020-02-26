@@ -1,5 +1,8 @@
 {
     "database": "mongodb://localhost:27017",
     "countries-csv": "etc\\countries.csv",
-    "regions-csv": "etc\\regions.csv"
+    "regions-csv": "etc\\regions.csv",
+    "airports-csv": "etc\\airports.csv",
+    "runways-csv": "etc\\runways.csv",
+    "max-results": 512
 }

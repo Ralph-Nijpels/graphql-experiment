@@ -8,8 +8,8 @@ import (
 	"github.com/gorilla/mux"
 
 	"../airports"
+	"../application"
 	"../countries"
-	"../database"
 	"../regions"
 )
 
@@ -122,14 +122,14 @@ func getAirport(w http.ResponseWriter, r *http.Request) {
 func main() {
 	var err error
 
-	dbContext, err := database.NewContext()
+	context, err := application.GetContext()
 	if err != nil {
 		log.Panic(err)
 	}
 
-	theCountries = countries.NewCountries(dbContext)
-	theRegions = regions.NewRegions(dbContext, theCountries)
-	theAirports = airports.NewAirports(dbContext, theCountries, theRegions)
+	theCountries = countries.NewCountries(context)
+	theRegions = regions.NewRegions(context, theCountries)
+	theAirports = airports.NewAirports(context, theCountries, theRegions)
 
 	myRouter := mux.NewRouter()
 	myRouter.HandleFunc("/geography/countries", getCountries).Methods("GET")

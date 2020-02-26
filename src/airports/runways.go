@@ -15,7 +15,8 @@ import (
 // Runways is the representation of the collection of runways. The runways are implemented
 // as an element of the Airport, but it has some methods of it's own.
 type Runways struct {
-	parent *Airports
+	parent  *Airports
+	csvFile string
 }
 
 // Runway is the external representation of a runway belonging to an Airport
@@ -191,7 +192,7 @@ func (runways *Runways) importCSVLine(lineNumber int, line []string) error {
 
 	// Dump in mongo
 	_, err = runways.parent.collection.UpdateOne(
-		runways.parent.database.Context,
+		runways.parent.dbContext,
 		bson.D{{Key: "icao-airport-code", Value: airport.AirportCode}},
 		bson.M{"$set": airport})
 
@@ -206,7 +207,7 @@ func (runways *Runways) importCSVLine(lineNumber int, line []string) error {
 func (runways *Runways) ImportCSV() error {
 
 	// Open the airports.csv file
-	csvFile, _ := os.Open("runways.csv")
+	csvFile, _ := os.Open(runways.parent.runwaysCSV)
 	reader := csv.NewReader(bufio.NewReader(csvFile))
 	defer csvFile.Close()
 

@@ -30,6 +30,7 @@ type optionFile struct {
 	AirportsCSV    string `json:"airports-csv"`
 	RunwaysCSV     string `json:"runways-csv"`
 	FrequenciesCSV string `json:"frequencies-csv"`
+	MaxResults     int64  `json:"max-results"`
 }
 
 func readOptions() (*optionFile, error) {
@@ -77,7 +78,7 @@ func GetContext() (*Context, error) {
 	context := Context{
 		DBClient:       client,
 		DBContext:      context.TODO(),
-		MaxResults:     250,
+		MaxResults:     applicationOptions.MaxResults,
 		CountriesCSV:   applicationOptions.CountriesCSV,
 		RegionsCSV:     applicationOptions.RegionsCSV,
 		AirportsCSV:    applicationOptions.AirportsCSV,

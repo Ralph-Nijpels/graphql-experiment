@@ -2,6 +2,7 @@ package airports
 
 import (
 	"bufio"
+	"context"
 	"encoding/csv"
 	"fmt"
 	"io"
@@ -13,8 +14,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
+	"../application"
 	"../countries"
-	"../database"
 	"../datatypes"
 	"../regions"
 )
@@ -23,10 +24,14 @@ import (
 
 // Airports is the representation of the collection of Airports in the geography database
 type Airports struct {
-	database   *database.Context
-	collection *mongo.Collection
-	countries  *countries.Countries
-	regions    *regions.Regions
+	dbClient    *mongo.Client
+	dbContext   context.Context
+	collection  *mongo.Collection
+	countries   *countries.Countries
+	regions     *regions.Regions
+	airportsCSV string
+	runwaysCSV  string
+	maxResults  int64
 }
 
 // Airport is the external representation for an ICAO-airport including both a bson (for mongo)
@@ -72,18 +77,22 @@ type insertAirport struct {
 }
 
 // NewAirports sets up the connection to the database
-func NewAirports(context *database.Context, countries *countries.Countries, regions *regions.Regions) *Airports {
+func NewAirports(application *application.Context, countries *countries.Countries, regions *regions.Regions) *Airports {
 	airports := Airports{
-		database:  context,
-		countries: countries,
-		regions:   regions}
+		dbClient:    application.DBClient,
+		dbContext:   application.DBContext,
+		airportsCSV: application.AirportsCSV,
+		runwaysCSV:  application.RunwaysCSV,
+		maxResults:  application.MaxResults,
+		countries:   countries,
+		regions:     regions}
 
 	// Setup the Airport Collection
-	airports.collection = context.Client.Database("flight-schedule").Collection("airports")
+	airports.collection = application.DBClient.Database("flight-schedule").Collection("airports")
 	airportIndex1 := mongo.IndexModel{Keys: bson.M{"icao-airport-code": 1}}
-	airports.collection.Indexes().CreateOne(context.Context, airportIndex1)
+	airports.collection.Indexes().CreateOne(application.DBContext, airportIndex1)
 	airportIndex2 := mongo.IndexModel{Keys: bson.M{"iata-airport-code": 1}}
-	airports.collection.Indexes().CreateOne(context.Context, airportIndex2)
+	airports.collection.Indexes().CreateOne(application.DBContext, airportIndex2)
 
 	return &airports
 }
@@ -97,7 +106,7 @@ func (airports *Airports) GetByAirportCode(airportCode string) (*Airport, error)
 		return nil, fmt.Errorf("GetByAirportCode.AirportCode(%s): %v", airportCode, err)
 	}
 
-	err = airports.collection.FindOne(airports.database.Context,
+	err = airports.collection.FindOne(airports.dbContext,
 		bson.D{{Key: "icao-airport-code", Value: parameter}}).Decode(&result)
 
 	if err != nil {
@@ -116,7 +125,7 @@ func (airports *Airports) GetByIATACode(iataCode string) (*Airport, error) {
 		return nil, fmt.Errorf("GetByIATACode.AirportCode(%s): %v", iataCode, err)
 	}
 
-	err = airports.collection.FindOne(airports.database.Context,
+	err = airports.collection.FindOne(airports.dbContext,
 		bson.D{{Key: "iata-airport-code", Value: parameter}}).Decode(&result)
 
 	if err != nil {
@@ -180,27 +189,27 @@ func (airports *Airports) GetList(countryCode string, regionCode string,
 	if err != nil {
 		return nil, fmt.Errorf("GetList.UntilIATA(%s): %v", untilIATA, err)
 	}
-	for len(parameter) != 0 {
+	if len(parameter) != 0 {
 		query = append(query, bson.E{Key: "iata-airport-code", Value: bson.D{{Key: "$lte", Value: parameter}}})
 	}
 
 	findOptions := options.Find()
-	findOptions.SetLimit(airports.database.MaxResults + 1)
+	findOptions.SetLimit(airports.maxResults + 1)
 
-	cur, err := airports.collection.Find(airports.database.Context, query, findOptions)
+	cur, err := airports.collection.Find(airports.dbContext, query, findOptions)
 	if err != nil {
 		return nil, fmt.Errorf("Not found")
 	}
 
-	for cur.Next(airports.database.Context) {
+	for cur.Next(airports.dbContext) {
 		var airport Airport
 		cur.Decode(&airport)
 		result = append(result, &airport)
 	}
 
-	cur.Close(airports.database.Context)
+	cur.Close(airports.dbContext)
 
-	if int64(len(result)) > airports.database.MaxResults {
+	if int64(len(result)) > airports.maxResults {
 		return nil, fmt.Errorf("Too many results")
 	}
 
@@ -282,7 +291,7 @@ func (airports *Airports) importCSVLine(lineNumber int, line []string) error {
 	}
 
 	// Dump in mongo
-	_, err = airports.collection.UpdateOne(airports.database.Context,
+	_, err = airports.collection.UpdateOne(airports.dbContext,
 		bson.D{{Key: "icao-airport-code", Value: airport.AirportCode}},
 		bson.M{"$set": airport},
 		options.Update().SetUpsert(true))
@@ -298,7 +307,7 @@ func (airports *Airports) importCSVLine(lineNumber int, line []string) error {
 func (airports *Airports) ImportCSV() error {
 
 	// Open the airports.csv file
-	csvFile, _ := os.Open("airports.csv")
+	csvFile, _ := os.Open(airports.airportsCSV)
 	reader := csv.NewReader(bufio.NewReader(csvFile))
 	defer csvFile.Close()
 
