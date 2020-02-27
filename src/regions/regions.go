@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 
 	"go.mongodb.org/mongo-driver/mongo"
 
@@ -75,7 +74,7 @@ func NewRegions(application *application.Context, countries *countries.Countries
 func (regions *Regions) GetByRegionCode(regionCode string) (*Region, error) {
 	var result Region
 
-	regionCode, err := datatypes.ISORegionCode(regionCode, false)
+	regionCode, err := datatypes.ISORegionCode(regionCode, false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -95,17 +94,15 @@ func (regions *Regions) GetList(countryCode string, fromRegionCode string, until
 	var result []*Region
 	var query = bson.D{{}}
 
-	if len(strings.TrimSpace(countryCode)) != 0 {
-		parameter, err := datatypes.ISOCountryCode(countryCode, false)
-		if err != nil {
-			return nil, fmt.Errorf("GetList.CountryCode(%s): %v", countryCode, err)
-		}
-		if len(parameter) != 0 {
-			query = append(query, bson.E{Key: "iso-country-code", Value: parameter})
-		}
+	parameter, err := datatypes.ISOCountryCode(countryCode, false, true)
+	if err != nil {
+		return nil, fmt.Errorf("GetList.CountryCode(%s): %v", countryCode, err)
+	}
+	if len(parameter) != 0 {
+		query = append(query, bson.E{Key: "iso-country-code", Value: parameter})
 	}
 
-	parameter, err := datatypes.ISORegionCode(fromRegionCode, true)
+	parameter, err = datatypes.ISORegionCode(fromRegionCode, true, true)
 	if err != nil {
 		return nil, fmt.Errorf("GetList.fromRegionCode(%s): %v", fromRegionCode, err)
 	}
@@ -113,7 +110,7 @@ func (regions *Regions) GetList(countryCode string, fromRegionCode string, until
 		query = append(query, bson.E{Key: "iso-region-code", Value: bson.D{{Key: "$gte", Value: parameter}}})
 	}
 
-	parameter, err = datatypes.ISORegionCode(untilRegionCode, true)
+	parameter, err = datatypes.ISORegionCode(untilRegionCode, true, true)
 	if err != nil {
 		return nil, fmt.Errorf("GetList.untilRegionCode(%s): %v", untilRegionCode, err)
 	}
@@ -155,7 +152,7 @@ func (regions *Regions) importCSVLine(line []string, lineNumber int) error {
 	}
 
 	// Check Region Code
-	regionCode, err := datatypes.ISORegionCode(line[1], false)
+	regionCode, err := datatypes.ISORegionCode(line[1], false, false)
 	if err != nil {
 		return fmt.Errorf("Regions[%d].RegionCode(%s): %v", lineNumber, line[1], err)
 	}

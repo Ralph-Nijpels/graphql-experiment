@@ -54,7 +54,7 @@ func (runways *Runways) importCSVLine(lineNumber int, line []string) error {
 	}
 
 	// Check for valid ICAO code
-	airportCode, err := datatypes.ICAOAirportCode(line[2], false)
+	airportCode, err := datatypes.ICAOAirportCode(line[2], false, false)
 	if err != nil {
 		return fmt.Errorf("Runway[%d].AirportCode(%s): %v", lineNumber, line[2], err)
 	}
@@ -98,7 +98,7 @@ func (runways *Runways) importCSVLine(lineNumber int, line []string) error {
 		return fmt.Errorf("Runway[%d].Lowend.Code(%s): Missing", lineNumber, line[8])
 	}
 
-	lowendCode, err := datatypes.RunwayCode(line[8], false)
+	lowendCode, err := datatypes.RunwayCode(line[8], false, false)
 	if err != nil {
 		return fmt.Errorf("Runway[%d].Lowend.Code(%s): %v", lineNumber, line[8], err)
 	}
@@ -137,7 +137,7 @@ func (runways *Runways) importCSVLine(lineNumber int, line []string) error {
 		Threshold:  lowendThreshold}
 
 	if len(line[14]) > 0 {
-		highendCode, err := datatypes.RunwayCode(line[14], false)
+		highendCode, err := datatypes.RunwayCode(line[14], false, false)
 		if err != nil {
 			return fmt.Errorf("Runway[%d].Highend.Code(%s): %v", lineNumber, line[14], err)
 		}

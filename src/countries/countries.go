@@ -68,7 +68,7 @@ func NewCountries(application *application.Context) *Countries {
 func (countries *Countries) GetByCountryCode(countryCode string) (*Country, error) {
 	var result Country
 
-	countryCode, err := datatypes.ISOCountryCode(countryCode, false)
+	countryCode, err := datatypes.ISOCountryCode(countryCode, false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +88,7 @@ func (countries *Countries) GetList(fromCountryCode string, untilCountryCode str
 	var result []*Country
 	var query = bson.D{{}}
 
-	fromCountryCode, err := datatypes.ISOCountryCode(fromCountryCode, true)
+	fromCountryCode, err := datatypes.ISOCountryCode(fromCountryCode, true, true)
 	if err != nil {
 		return nil, fmt.Errorf("fromCountry(%s): %v", fromCountryCode, err)
 	}
@@ -97,7 +97,7 @@ func (countries *Countries) GetList(fromCountryCode string, untilCountryCode str
 			Value: bson.D{{Key: "$gte", Value: fromCountryCode}}})
 	}
 
-	untilCountryCode, err = datatypes.ISOCountryCode(untilCountryCode, true)
+	untilCountryCode, err = datatypes.ISOCountryCode(untilCountryCode, true, true)
 	if err != nil {
 		return nil, fmt.Errorf("untilCountry(%s): %v", untilCountryCode, err)
 	}
@@ -140,7 +140,7 @@ func (countries *Countries) importCSVLine(line []string, lineNumber int) error {
 	}
 
 	// Check Country Code
-	countryCode, err := datatypes.ISOCountryCode(line[1], false)
+	countryCode, err := datatypes.ISOCountryCode(line[1], false, false)
 	if err != nil {
 		return fmt.Errorf("Countries[%d].CountryCode(%s): %v", lineNumber, line[1], err)
 	}

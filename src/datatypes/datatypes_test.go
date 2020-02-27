@@ -6,25 +6,28 @@ func TestISOCountryCode(t *testing.T) {
 	var tests = []struct {
 		value   string
 		partial bool
+		empty   bool
 		result  string
 		correct bool
 	}{
-		{"", false, "", false},    // too short
-		{"", true, "", true},      // too short, but partial --> ok
-		{"_", false, "", false},   // wrong char class
-		{"_", true, "", false},    // wrong char class
-		{"N", false, "", false},   // too short
-		{"N", true, "N", true},    // too short, but partial --> ok
-		{"n", true, "N", true},    // lowercase gets converted
-		{"NL", false, "NL", true}, // perfect
-		{"NL", true, "NL", true},  // perfect
-		{"nl", false, "NL", true}, // perfect & converted
-		{"NLS", false, "", false}, // too long
-		{"NLS", true, "", false},  // too long
+		{"", false, false, "", false},    // empty (not allowed)
+		{"", false, true, "", true},      // empty (but allowed)
+		{"N", true, false, "N", true},    // too short, but partial --> ok
+		{"N", true, true, "N", true},     // too short, but partial --> ok
+		{"--", false, false, "", false},  // wrong char class
+		{"--", true, false, "", false},   // wrong char class
+		{"nn", true, false, "NN", true},  // lowercase gets converted
+		{"NL", false, false, "NL", true}, // perfect
+		{"NL", true, false, "NL", true},  // perfect
+		{"NL", false, true, "NL", true},  // perfect
+		{"NL", true, true, "NL", true},   // perfect
+		{"nl", false, false, "NL", true}, // perfect & converted
+		{"NLS", false, false, "", false}, // too long
+		{"NLS", true, false, "", false},  // too long
 	}
 
 	for _, test := range tests {
-		result, err := ISOCountryCode(test.value, test.partial)
+		result, err := ISOCountryCode(test.value, test.partial, test.empty)
 		if (test.correct && err != nil) || (!test.correct && err == nil) {
 			t.Errorf("ISOCountryCode(%s, %t) expected %t, got %t", test.value, test.partial, test.correct, (err == nil))
 		}
@@ -38,23 +41,24 @@ func TestISORegionCode(t *testing.T) {
 	var tests = []struct {
 		value   string
 		partial bool
+		empty   bool
 		result  string
 		correct bool
 	}{
-		{"", false, "", false},            // too short
-		{"", true, "", true},              // too short, but partial --> ok
-		{"(", false, "", false},           // wrong char class
-		{"(", true, "", false},            // wrong char class still
-		{"N", false, "N", true},           // one letter will do
-		{"n", false, "N", true},           // one letter will do, ucased for you
-		{"9", false, "9", true},           // one digit will do
-		{"-", false, "-", true},           // one connector will do
-		{" AK ", false, "AK", true},       // Alaska works, spaces are killed
-		{"US - AK", false, "US-AK", true}, // full story, no spaces
+		{"", false, false, "", false},            // empty
+		{"", false, true, "", true},              // empty (allowed)
+		{"(", false, false, "", false},           // wrong char class
+		{"(", true, false, "", false},            // wrong char class still
+		{"N", false, false, "N", true},           // one letter will do
+		{"n", false, false, "N", true},           // one letter will do, ucased for you
+		{"9", false, false, "9", true},           // one digit will do
+		{"-", false, false, "-", true},           // one connector will do
+		{" AK ", false, false, "AK", true},       // Alaska works, spaces are killed
+		{"US - AK", false, false, "US-AK", true}, // full story, no spaces
 	}
 
 	for _, test := range tests {
-		result, err := ISORegionCode(test.value, test.partial)
+		result, err := ISORegionCode(test.value, test.partial, test.empty)
 		if (test.correct && err != nil) || (!test.correct && err == nil) {
 			t.Errorf("ISORegionCode(%s, %t) expected %t, got %t", test.value, test.partial, test.correct, (err == nil))
 		}
@@ -68,24 +72,27 @@ func TestICAOAirportCode(t *testing.T) {
 	var tests = []struct {
 		value   string
 		partial bool
+		empty   bool
 		result  string
 		correct bool
 	}{
-		{"", false, "", false},          // too short
-		{"", true, "", true},            // too short, but partial --> ok
-		{"(", false, "", false},         // wrong char class
-		{"(", true, "", false},          // wrong char class still
-		{"N", true, "N", true},          // one letter will do
-		{"N", false, "", false},         // right char class but too short
-		{"n", true, "N", true},          // one letter will do, ucased for you
-		{"9", true, "9", true},          // one digit will do
-		{"-", true, "", false},          // one connector will do
-		{" EHAM ", false, "EHAM", true}, // Amsterdam works, spaces are killed
-		{"EHAM", false, "EHAM", true},   // full story, no spaces
+		{"", false, false, "", false},          // empty (not allowed)
+		{"", false, true, "", true},            // empty (allowed)
+		{"----", false, false, "", false},      // wrong char class
+		{"----", true, false, "", false},       // wrong char class still
+		{"----", false, true, "", false},       // wrong char class
+		{"----", true, true, "", false},        // wrong char class still
+		{"N", true, false, "N", true},          // one letter will do
+		{"N", false, false, "", false},         // right char class but too short
+		{"n", true, false, "N", true},          // one letter will do, ucased for you
+		{"9", true, false, "9", true},          // one digit will do
+		{"-", true, false, "", false},          // one connector will do
+		{" EHAM ", false, false, "EHAM", true}, // Amsterdam works, spaces are killed
+		{"EHAM", false, false, "EHAM", true},   // full story, no spaces
 	}
 
 	for _, test := range tests {
-		result, err := ICAOAirportCode(test.value, test.partial)
+		result, err := ICAOAirportCode(test.value, test.partial, test.empty)
 		if (test.correct && err != nil) || (!test.correct && err == nil) {
 			t.Errorf("ICAOAirportCode(%s, %t) expected %t, got %t", test.value, test.partial, test.correct, (err == nil))
 		}
@@ -99,24 +106,25 @@ func TestIATAAirportCode(t *testing.T) {
 	var tests = []struct {
 		value   string
 		partial bool
+		empty   bool
 		result  string
 		correct bool
 	}{
-		{"", false, "", false},        // too short
-		{"", true, "", true},          // too short, but partial --> ok
-		{"(", false, "", false},       // wrong char class
-		{"(", true, "", false},        // wrong char class still
-		{"N", true, "N", true},        // one letter will do
-		{"N", false, "", false},       // right char class but too short
-		{"n", true, "N", true},        // one letter will do, ucased for you
-		{"9", true, "", false},        // wrong char class
-		{"-", true, "", false},        // wrong char class
-		{" AMS ", false, "AMS", true}, // Amsterdam works, spaces are killed
-		{"EHAM", false, "", false},    // too long
+		{"", false, false, "", false},        // empty (not allowed)
+		{"", false, true, "", true},          // empty (allowed)
+		{"(((", false, false, "", false},     // wrong char class
+		{"(((", true, false, "", false},      // wrong char class still
+		{"N", true, false, "N", true},        // one letter will do
+		{"N", false, false, "", false},       // right char class but too short
+		{"n", true, false, "N", true},        // one letter will do, ucased for you
+		{"9", true, false, "", false},        // wrong char class
+		{"-", true, false, "", false},        // wrong char class
+		{" AMS ", false, false, "AMS", true}, // Amsterdam works, spaces are killed
+		{"EHAM", false, false, "", false},    // too long
 	}
 
 	for _, test := range tests {
-		result, err := IATAAirportCode(test.value, test.partial)
+		result, err := IATAAirportCode(test.value, test.partial, test.empty)
 		if (test.correct && err != nil) || (!test.correct && err == nil) {
 			t.Errorf("IATAAirportCode(%s, %t) expected %t, got %t", test.value, test.partial, test.correct, (err == nil))
 		}
@@ -130,23 +138,24 @@ func TestRunwayCode(t *testing.T) {
 	var tests = []struct {
 		value   string
 		partial bool
+		empty   bool
 		result  string
 		correct bool
 	}{
-		{"", false, "", false},        // too short
-		{"", true, "", true},          // too short, but partial --> ok
-		{"(", false, "", false},       // wrong char class
-		{"(", true, "", false},        // wrong char class still
-		{"N", true, "N", true},        // one letter will do
-		{"n", true, "N", true},        // one letter will do, ucased for you
-		{"9", true, "9", true},        // one digit will do
-		{"-", true, "-", true},        // one separator will do
-		{"27L", false, "27L", true},   // 27 left works
-		{" 27L ", false, "27L", true}, // 27 left works, spaces are killed
+		{"", false, false, "", false},        // empty (not allowed)
+		{"", false, true, "", true},          // empty (allowed)
+		{"(", false, false, "", false},       // wrong char class
+		{"(", true, false, "", false},        // wrong char class still
+		{"N", true, false, "N", true},        // one letter will do
+		{"n", true, false, "N", true},        // one letter will do, ucased for you
+		{"9", true, false, "9", true},        // one digit will do
+		{"-", true, false, "-", true},        // one separator will do
+		{"27L", false, false, "27L", true},   // 27 left works
+		{" 27L ", false, false, "27L", true}, // 27 left works, spaces are killed
 	}
 
 	for _, test := range tests {
-		result, err := RunwayCode(test.value, test.partial)
+		result, err := RunwayCode(test.value, test.partial, test.empty)
 		if (test.correct && err != nil) || (!test.correct && err == nil) {
 			t.Errorf("RunCode(%s, %t) expected %t, got %t", test.value, test.partial, test.correct, (err == nil))
 		}

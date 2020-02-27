@@ -12,8 +12,10 @@ import (
 // in the geography database
 
 // ISOCountryCode converts a string into a valid ISO Country Code
-func ISOCountryCode(s string, partial bool) (string, error) {
+func ISOCountryCode(s string, partial bool, empty bool) (string, error) {
 	var result strings.Builder
+
+	// Clean the string and validate content
 	for _, c := range s {
 		if !unicode.IsSpace(c) {
 			if !unicode.IsLetter(c) {
@@ -22,15 +24,26 @@ func ISOCountryCode(s string, partial bool) (string, error) {
 			result.WriteRune(unicode.ToUpper(c))
 		}
 	}
-	if (result.Len() > 2) || (result.Len() < 2 && !partial) {
+	// Empty
+	if result.Len() == 0 && !empty {
+		return "", fmt.Errorf("Invalid ISO Country Code")
+	}
+	// Too short
+	if result.Len() > 0 && result.Len() < 2 && !partial {
+		return "", fmt.Errorf("Invalid ISO Country Code")
+	}
+	// Too long
+	if result.Len() > 2 {
 		return "", fmt.Errorf("Invalid ISO Country Code")
 	}
 	return result.String(), nil
 }
 
 // ISORegionCode converts a string into a valid ISO Region Code
-func ISORegionCode(s string, partial bool) (string, error) {
+func ISORegionCode(s string, partial bool, empty bool) (string, error) {
 	var result strings.Builder
+
+	// Clean the string
 	for _, c := range s {
 		if !unicode.IsSpace(c) {
 			if !unicode.In(c, unicode.Letter, unicode.Digit, unicode.Pc, unicode.Pd) {
@@ -39,17 +52,19 @@ func ISORegionCode(s string, partial bool) (string, error) {
 			result.WriteRune(unicode.ToUpper(c))
 		}
 	}
-	// I don't know the length ranges of an ISO Region Code
-	// so it is untested for now (just empty is no good)
-	if result.Len() == 0 && !partial {
+	// Empty
+	if result.Len() == 0 && !empty {
 		return "", fmt.Errorf("Invalid ISO Region Code")
 	}
+	// I don't know the length ranges of an ISO Region Code
+	// so it is untested for now (just empty is no good)
 	return result.String(), nil
 }
 
 // ICAOAirportCode converts a string into a valid ICAO Airport Code
-func ICAOAirportCode(s string, partial bool) (string, error) {
+func ICAOAirportCode(s string, partial bool, empty bool) (string, error) {
 	var result strings.Builder
+	// Clean the string
 	for _, c := range s {
 		if !unicode.IsSpace(c) {
 			if !unicode.IsDigit(c) && !unicode.IsLetter(c) {
@@ -58,15 +73,25 @@ func ICAOAirportCode(s string, partial bool) (string, error) {
 			result.WriteRune(unicode.ToUpper(c))
 		}
 	}
-	if (result.Len() > 4) || (result.Len() < 4 && !partial) {
+	// Empty
+	if result.Len() == 0 && !empty {
+		return "", fmt.Errorf("Invalid ICAO Airport Code")
+	}
+	// Short
+	if result.Len() > 0 && result.Len() < 4 && !partial {
+		return "", fmt.Errorf("Invalid ICAO Airport Code")
+	}
+	// Long
+	if result.Len() > 4 {
 		return "", fmt.Errorf("Invalid ICAO Airport Code")
 	}
 	return result.String(), nil
 }
 
 // IATAAirportCode converts a string into a valid IATA Airport Code
-func IATAAirportCode(s string, partial bool) (string, error) {
+func IATAAirportCode(s string, partial bool, empty bool) (string, error) {
 	var result strings.Builder
+	// Clean the string
 	for _, c := range s {
 		if !unicode.IsSpace(c) {
 			if !unicode.IsLetter(c) {
@@ -75,15 +100,25 @@ func IATAAirportCode(s string, partial bool) (string, error) {
 			result.WriteRune(unicode.ToUpper(c))
 		}
 	}
-	if (result.Len() > 3) || (result.Len() < 3 && !partial) {
+	// Empty
+	if result.Len() == 0 && !empty {
+		return "", fmt.Errorf("Invalid IATA Airport Code")
+	}
+	// Short
+	if result.Len() > 0 && result.Len() < 3 && !partial {
+		return "", fmt.Errorf("Invalid IATA Airport Code")
+	}
+	// Long
+	if result.Len() > 3 {
 		return "", fmt.Errorf("Invalid IATA Airport Code")
 	}
 	return result.String(), nil
 }
 
 // RunwayCode converts a string to a valid RunwayCode
-func RunwayCode(s string, partial bool) (string, error) {
+func RunwayCode(s string, partial bool, empty bool) (string, error) {
 	var result strings.Builder
+	// Clean the string
 	for _, c := range s {
 		if !unicode.IsSpace(c) {
 			if !unicode.In(c, unicode.Letter, unicode.Digit, unicode.Pc, unicode.Pd) {
@@ -92,10 +127,11 @@ func RunwayCode(s string, partial bool) (string, error) {
 			result.WriteRune(unicode.ToUpper(c))
 		}
 	}
-	// No maximum length known
-	if len(s) == 0 && !partial {
+	// Empty
+	if len(s) == 0 && !empty {
 		return "", fmt.Errorf("Invalid Runway Code")
 	}
+	// No maximum length known, so we also don't know how to define 'partial'
 	return result.String(), nil
 }
 

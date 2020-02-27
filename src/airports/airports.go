@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -101,7 +100,7 @@ func NewAirports(application *application.Context, countries *countries.Countrie
 func (airports *Airports) GetByAirportCode(airportCode string) (*Airport, error) {
 	var result Airport
 
-	parameter, err := datatypes.ICAOAirportCode(airportCode, false)
+	parameter, err := datatypes.ICAOAirportCode(airportCode, false, false)
 	if err != nil {
 		return nil, fmt.Errorf("GetByAirportCode.AirportCode(%s): %v", airportCode, err)
 	}
@@ -120,7 +119,7 @@ func (airports *Airports) GetByAirportCode(airportCode string) (*Airport, error)
 func (airports *Airports) GetByIATACode(iataCode string) (*Airport, error) {
 	var result Airport
 
-	parameter, err := datatypes.IATAAirportCode(iataCode, false)
+	parameter, err := datatypes.IATAAirportCode(iataCode, false, false)
 	if err != nil {
 		return nil, fmt.Errorf("GetByIATACode.AirportCode(%s): %v", iataCode, err)
 	}
@@ -142,26 +141,23 @@ func (airports *Airports) GetList(countryCode string, regionCode string,
 	var result []*Airport
 	var query = bson.D{{}}
 
-	if len(strings.TrimSpace(countryCode)) != 0 {
-		parameter, err := datatypes.ISOCountryCode(countryCode, false)
-		if err != nil {
-			return nil, fmt.Errorf("GetList.CountryCode(%s): %v", countryCode, err)
-		}
-		if len(parameter) != 0 {
-			query = append(query, bson.E{Key: "iso-country-code", Value: parameter})
-		}
+	parameter, err := datatypes.ISOCountryCode(countryCode, false, true)
+	if err != nil {
+		return nil, fmt.Errorf("GetList.CountryCode(%s): %v", countryCode, err)
+	}
+	if len(parameter) != 0 {
+		query = append(query, bson.E{Key: "iso-country-code", Value: parameter})
 	}
 
-	if len(strings.TrimSpace(regionCode)) != 0 {
-		parameter, err := datatypes.ISORegionCode(regionCode, false)
-		if err != nil {
-			return nil, fmt.Errorf("GetList.RegionCode(%s): %v", regionCode, err)
-		}
-		if len(parameter) != 0 {
-			query = append(query, bson.E{Key: "iso-region-code", Value: parameter})
-		}
+	parameter, err = datatypes.ISORegionCode(regionCode, false, true)
+	if err != nil {
+		return nil, fmt.Errorf("GetList.RegionCode(%s): %v", regionCode, err)
 	}
-	parameter, err := datatypes.ICAOAirportCode(fromICAO, true)
+	if len(parameter) != 0 {
+		query = append(query, bson.E{Key: "iso-region-code", Value: parameter})
+	}
+
+	parameter, err = datatypes.ICAOAirportCode(fromICAO, true, true)
 	if err != nil {
 		return nil, fmt.Errorf("GetList.FromICAO(%s): %v", fromICAO, err)
 	}
@@ -169,7 +165,7 @@ func (airports *Airports) GetList(countryCode string, regionCode string,
 		query = append(query, bson.E{Key: "icao-airport-code", Value: bson.D{{Key: "$gte", Value: parameter}}})
 	}
 
-	parameter, err = datatypes.ICAOAirportCode(untilICAO, true)
+	parameter, err = datatypes.ICAOAirportCode(untilICAO, true, true)
 	if err != nil {
 		return nil, fmt.Errorf("GetList.UntilICAO(%s): %v", untilICAO, err)
 	}
@@ -177,7 +173,7 @@ func (airports *Airports) GetList(countryCode string, regionCode string,
 		query = append(query, bson.E{Key: "icao-airport-code", Value: bson.D{{Key: "$lte", Value: parameter}}})
 	}
 
-	parameter, err = datatypes.IATAAirportCode(fromIATA, true)
+	parameter, err = datatypes.IATAAirportCode(fromIATA, true, true)
 	if err != nil {
 		return nil, fmt.Errorf("GetList.FromIATA(%s): %v", fromIATA, err)
 	}
@@ -185,7 +181,7 @@ func (airports *Airports) GetList(countryCode string, regionCode string,
 		query = append(query, bson.E{Key: "iata-airport-code", Value: bson.D{{Key: "$gte", Value: parameter}}})
 	}
 
-	parameter, err = datatypes.IATAAirportCode(untilIATA, true)
+	parameter, err = datatypes.IATAAirportCode(untilIATA, true, true)
 	if err != nil {
 		return nil, fmt.Errorf("GetList.UntilIATA(%s): %v", untilIATA, err)
 	}
@@ -228,18 +224,15 @@ func (airports *Airports) importCSVLine(lineNumber int, line []string) error {
 	}
 
 	// Skip non-ICAO Airports
-	airportCode, err := datatypes.ICAOAirportCode(line[1], false)
+	airportCode, err := datatypes.ICAOAirportCode(line[1], false, false)
 	if err != nil {
 		return fmt.Errorf("Airport[%d].IATA-Airport(%s): %v", lineNumber, line[1], err)
 	}
 
 	// Fill only valid IATA codes
-	airportIATA := ""
-	if len(line[13]) != 0 {
-		airportIATA, err = datatypes.IATAAirportCode(line[13], false)
-		if err != nil {
-			return fmt.Errorf("Airport[%d].IATA-Airport(%s): %v", lineNumber, line[13], err)
-		}
+	airportIATA, err := datatypes.IATAAirportCode(line[13], false, true)
+	if err != nil {
+		return fmt.Errorf("Airport[%d].IATA-Airport(%s): %v", lineNumber, line[13], err)
 	}
 
 	// Check for valid Country
