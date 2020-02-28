@@ -3,6 +3,8 @@ package application
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"log"
 	"os"
 
 	"go.mongodb.org/mongo-driver/mongo"
@@ -14,6 +16,7 @@ import (
 type Context struct {
 	DBClient       *mongo.Client
 	DBContext      context.Context
+	LogFolder      string
 	MaxResults     int64
 	CountriesCSV   string
 	RegionsCSV     string
@@ -25,6 +28,7 @@ type Context struct {
 // Optionfile descibes the content of the options file
 type optionFile struct {
 	Database       string `json:"database"`
+	LogFolder      string `json:"log-folder"`
 	CountriesCSV   string `json:"countries-csv"`
 	RegionsCSV     string `json:"regions-csv"`
 	AirportsCSV    string `json:"airports-csv"`
@@ -78,6 +82,7 @@ func GetContext() (*Context, error) {
 	context := Context{
 		DBClient:       client,
 		DBContext:      context.TODO(),
+		LogFolder:      applicationOptions.LogFolder,
 		MaxResults:     applicationOptions.MaxResults,
 		CountriesCSV:   applicationOptions.CountriesCSV,
 		RegionsCSV:     applicationOptions.RegionsCSV,
@@ -87,4 +92,30 @@ func GetContext() (*Context, error) {
 
 	return &context, nil
 
+}
+
+// LogFile creates a new logfile for the given topic in the logfolder
+// TODO: add date and sequence number to the file name
+func (context *Context) LogFile(topic string) (*os.File, error) {
+	logFile, err := os.Create(fmt.Sprintf("%s/%s.log", context.LogFolder, topic))
+
+	if err != nil {
+		log.SetOutput(logFile)
+	}
+
+	return logFile, err
+}
+
+// LogPrintln inserts a message in the logfile
+func (context *Context) LogPrintln(s string) {
+	if len(s) != 0 {
+		log.Println(s)
+	}
+}
+
+// LogError inserts an error in the logfile if there is one
+func (context *Context) LogError(err error) {
+	if err != nil {
+		log.Println(err)
+	}
 }

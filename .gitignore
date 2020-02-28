@@ -5,8 +5,4 @@ TODO
 .vscode/launch.json
 bin/data-loader.exe
 bin/geography-rest.exe
-etc/airport-frequencies.csv
-etc/airports.csv
-etc/countries.csv
-etc/regions.csv
-etc/runways.csv
+etc/*

@@ -2,12 +2,14 @@ package airports
 
 import (
 	"bufio"
+	"context"
 	"encoding/csv"
 	"fmt"
 	"io"
 	"os"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 
 	"../datatypes"
 )
@@ -15,8 +17,7 @@ import (
 // Runways is the representation of the collection of runways. The runways are implemented
 // as an element of the Airport, but it has some methods of it's own.
 type Runways struct {
-	parent  *Airports
-	csvFile string
+	parent *Airports
 }
 
 // Runway is the external representation of a runway belonging to an Airport
@@ -42,9 +43,38 @@ type RunwaySide struct {
 
 // NewRunways initializes the collection of runways
 func (airports *Airports) NewRunways() *Runways {
-	Runways := Runways{
+	runways := Runways{
 		parent: airports}
-	return &Runways
+	return &runways
+}
+
+// Some support functions to clean up the code a little
+func (runways *Runways) dbClient() *mongo.Client {
+	return runways.parent.context.DBClient
+}
+
+func (runways *Runways) dbContext() context.Context {
+	return runways.parent.context.DBContext
+}
+
+func (runways *Runways) maxResults() int64 {
+	return runways.parent.context.MaxResults
+}
+
+func (runways *Runways) csvFile() (*os.File, error) {
+	return os.Open(runways.parent.context.RunwaysCSV)
+}
+
+func (runways *Runways) logFile() (*os.File, error) {
+	return runways.parent.context.LogFile("runways")
+}
+
+func (runways *Runways) logPrint(s string) {
+	runways.parent.context.LogPrintln(s)
+}
+
+func (runways *Runways) logError(err error) {
+	runways.parent.context.LogError(err)
 }
 
 func (runways *Runways) importCSVLine(lineNumber int, line []string) error {
@@ -192,7 +222,7 @@ func (runways *Runways) importCSVLine(lineNumber int, line []string) error {
 
 	// Dump in mongo
 	_, err = runways.parent.collection.UpdateOne(
-		runways.parent.dbContext,
+		runways.dbContext(),
 		bson.D{{Key: "icao-airport-code", Value: airport.AirportCode}},
 		bson.M{"$set": airport})
 
@@ -207,15 +237,25 @@ func (runways *Runways) importCSVLine(lineNumber int, line []string) error {
 func (runways *Runways) ImportCSV() error {
 
 	// Open the airports.csv file
-	csvFile, _ := os.Open(runways.parent.runwaysCSV)
-	reader := csv.NewReader(bufio.NewReader(csvFile))
+	csvFile, err := runways.csvFile()
+	if err != nil {
+		return err
+	}
 	defer csvFile.Close()
 
 	// Skip the headerline
+	reader := csv.NewReader(bufio.NewReader(csvFile))
 	line, err := reader.Read()
 	if err != nil {
 		return err
 	}
+
+	// open the logfile
+	_, err = runways.logFile()
+	if err != nil {
+		return err
+	}
+	runways.logPrint("Start Import")
 
 	// Read the data
 	// lineNumbers start at 1 and we've done the header
@@ -223,7 +263,7 @@ func (runways *Runways) ImportCSV() error {
 	line, err = reader.Read()
 	for err == nil {
 		err = runways.importCSVLine(lineNumber, line)
-		// TODO: Log errors
+		runways.logError(err)
 		line, err = reader.Read()
 		lineNumber++
 	}
@@ -231,6 +271,8 @@ func (runways *Runways) ImportCSV() error {
 	if err != io.EOF {
 		return err
 	}
+
+	runways.logPrint("End Import")
 
 	return nil
 }

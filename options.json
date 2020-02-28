@@ -1,5 +1,6 @@
 {
     "database": "mongodb://localhost:27017",
+    "log-folder": "c:\\projects\\graphql-experiment\\etc",
     "countries-csv": "etc\\countries.csv",
     "regions-csv": "etc\\regions.csv",
     "airports-csv": "etc\\airports.csv",

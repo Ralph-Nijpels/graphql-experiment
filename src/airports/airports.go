@@ -23,14 +23,10 @@ import (
 
 // Airports is the representation of the collection of Airports in the geography database
 type Airports struct {
-	dbClient    *mongo.Client
-	dbContext   context.Context
-	collection  *mongo.Collection
-	countries   *countries.Countries
-	regions     *regions.Regions
-	airportsCSV string
-	runwaysCSV  string
-	maxResults  int64
+	context    *application.Context
+	collection *mongo.Collection
+	countries  *countries.Countries
+	regions    *regions.Regions
 }
 
 // Airport is the external representation for an ICAO-airport including both a bson (for mongo)
@@ -78,13 +74,11 @@ type insertAirport struct {
 // NewAirports sets up the connection to the database
 func NewAirports(application *application.Context, countries *countries.Countries, regions *regions.Regions) *Airports {
 	airports := Airports{
-		dbClient:    application.DBClient,
-		dbContext:   application.DBContext,
-		airportsCSV: application.AirportsCSV,
-		runwaysCSV:  application.RunwaysCSV,
-		maxResults:  application.MaxResults,
-		countries:   countries,
-		regions:     regions}
+		context: application,
+		//		airportsCSV: application.AirportsCSV,
+		//		runwaysCSV:  application.RunwaysCSV,
+		countries: countries,
+		regions:   regions}
 
 	// Setup the Airport Collection
 	airports.collection = application.DBClient.Database("flight-schedule").Collection("airports")
@@ -96,6 +90,35 @@ func NewAirports(application *application.Context, countries *countries.Countrie
 	return &airports
 }
 
+// Some support functions to clean up the code a little
+func (airports *Airports) dbClient() *mongo.Client {
+	return airports.context.DBClient
+}
+
+func (airports *Airports) dbContext() context.Context {
+	return airports.context.DBContext
+}
+
+func (airports *Airports) maxResults() int64 {
+	return airports.context.MaxResults
+}
+
+func (airports *Airports) csvFile() (*os.File, error) {
+	return os.Open(airports.context.AirportsCSV)
+}
+
+func (airports *Airports) logFile() (*os.File, error) {
+	return airports.context.LogFile("airports")
+}
+
+func (airports *Airports) logPrint(s string) {
+	airports.context.LogPrintln(s)
+}
+
+func (airports *Airports) logError(err error) {
+	airports.context.LogError(err)
+}
+
 // GetByAirportCode retieves an Airport from the database based on its ICAO-Code
 func (airports *Airports) GetByAirportCode(airportCode string) (*Airport, error) {
 	var result Airport
@@ -105,7 +128,7 @@ func (airports *Airports) GetByAirportCode(airportCode string) (*Airport, error)
 		return nil, fmt.Errorf("GetByAirportCode.AirportCode(%s): %v", airportCode, err)
 	}
 
-	err = airports.collection.FindOne(airports.dbContext,
+	err = airports.collection.FindOne(airports.dbContext(),
 		bson.D{{Key: "icao-airport-code", Value: parameter}}).Decode(&result)
 
 	if err != nil {
@@ -124,7 +147,7 @@ func (airports *Airports) GetByIATACode(iataCode string) (*Airport, error) {
 		return nil, fmt.Errorf("GetByIATACode.AirportCode(%s): %v", iataCode, err)
 	}
 
-	err = airports.collection.FindOne(airports.dbContext,
+	err = airports.collection.FindOne(airports.dbContext(),
 		bson.D{{Key: "iata-airport-code", Value: parameter}}).Decode(&result)
 
 	if err != nil {
@@ -190,22 +213,22 @@ func (airports *Airports) GetList(countryCode string, regionCode string,
 	}
 
 	findOptions := options.Find()
-	findOptions.SetLimit(airports.maxResults + 1)
+	findOptions.SetLimit(airports.maxResults() + 1)
 
-	cur, err := airports.collection.Find(airports.dbContext, query, findOptions)
+	cur, err := airports.collection.Find(airports.dbContext(), query, findOptions)
 	if err != nil {
 		return nil, fmt.Errorf("Not found")
 	}
 
-	for cur.Next(airports.dbContext) {
+	for cur.Next(airports.dbContext()) {
 		var airport Airport
 		cur.Decode(&airport)
 		result = append(result, &airport)
 	}
 
-	cur.Close(airports.dbContext)
+	cur.Close(airports.dbContext())
 
-	if int64(len(result)) > airports.maxResults {
+	if int64(len(result)) > airports.maxResults() {
 		return nil, fmt.Errorf("Too many results")
 	}
 
@@ -284,7 +307,7 @@ func (airports *Airports) importCSVLine(lineNumber int, line []string) error {
 	}
 
 	// Dump in mongo
-	_, err = airports.collection.UpdateOne(airports.dbContext,
+	_, err = airports.collection.UpdateOne(airports.dbContext(),
 		bson.D{{Key: "icao-airport-code", Value: airport.AirportCode}},
 		bson.M{"$set": airport},
 		options.Update().SetUpsert(true))
@@ -300,15 +323,26 @@ func (airports *Airports) importCSVLine(lineNumber int, line []string) error {
 func (airports *Airports) ImportCSV() error {
 
 	// Open the airports.csv file
-	csvFile, _ := os.Open(airports.airportsCSV)
-	reader := csv.NewReader(bufio.NewReader(csvFile))
+	csvFile, err := airports.csvFile()
+	if err != nil {
+		return err
+	}
 	defer csvFile.Close()
 
+	// Open the logfile
+	_, err = airports.logFile()
+	if err != nil {
+		return err
+	}
+
 	// Skip the headerline
+	reader := csv.NewReader(bufio.NewReader(csvFile))
 	line, err := reader.Read()
 	if err != nil {
 		return err
 	}
+
+	airports.logPrint("Start Import")
 
 	// Read the data
 	// Line Numbers start at 1 and we've done the header
@@ -316,8 +350,7 @@ func (airports *Airports) ImportCSV() error {
 	line, err = reader.Read()
 	for err == nil {
 		err = airports.importCSVLine(lineNumber, line)
-		// TODO: log errors
-
+		airports.logError(err)
 		line, err = reader.Read()
 		lineNumber++
 	}
@@ -325,6 +358,8 @@ func (airports *Airports) ImportCSV() error {
 	if err != io.EOF {
 		return err
 	}
+
+	airports.logPrint("End Import")
 
 	return nil
 }

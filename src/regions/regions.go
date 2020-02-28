@@ -23,12 +23,9 @@ import (
 
 // Regions represents the connection to the database
 type Regions struct {
-	dbClient   *mongo.Client
-	dbContext  context.Context
-	collection *mongo.Collection
+	context    *application.Context
 	countries  *countries.Countries
-	csvFile    string
-	maxResults int64
+	collection *mongo.Collection
 }
 
 // Region is the external representation for an ISO-Region including both a bson (for mongo)
@@ -56,11 +53,8 @@ type insertRegion struct {
 // NewRegions establishes the connection to the database
 func NewRegions(application *application.Context, countries *countries.Countries) *Regions {
 	regions := Regions{
-		dbClient:   application.DBClient,
-		dbContext:  application.DBContext,
-		csvFile:    application.RegionsCSV,
-		countries:  countries,
-		maxResults: application.MaxResults}
+		context:   application,
+		countries: countries}
 
 	// Region Collection
 	regions.collection = application.DBClient.Database("flight-schedule").Collection("regions")
@@ -68,6 +62,35 @@ func NewRegions(application *application.Context, countries *countries.Countries
 	regions.collection.Indexes().CreateOne(application.DBContext, regionIndex)
 
 	return &regions
+}
+
+// Below some simple support functions to help ease the code
+func (regions *Regions) dbClient() *mongo.Client {
+	return regions.context.DBClient
+}
+
+func (regions *Regions) dbContext() context.Context {
+	return regions.context.DBContext
+}
+
+func (regions *Regions) csvFile() (*os.File, error) {
+	return os.Open(regions.context.RegionsCSV)
+}
+
+func (regions *Regions) maxResults() int64 {
+	return regions.context.MaxResults
+}
+
+func (regions *Regions) logFile() (*os.File, error) {
+	return regions.context.LogFile("regions")
+}
+
+func (regions *Regions) logPrint(s string) {
+	regions.context.LogPrintln(s)
+}
+
+func (regions *Regions) logError(err error) {
+	regions.context.LogError(err)
 }
 
 // GetByRegionCode retrieves a region from the database based on a RegionCode
@@ -79,7 +102,7 @@ func (regions *Regions) GetByRegionCode(regionCode string) (*Region, error) {
 		return nil, err
 	}
 
-	err = regions.collection.FindOne(regions.dbContext,
+	err = regions.collection.FindOne(regions.dbContext(),
 		bson.D{{Key: "iso-region-code", Value: regionCode}}).Decode(&result)
 
 	if err != nil {
@@ -119,22 +142,22 @@ func (regions *Regions) GetList(countryCode string, fromRegionCode string, until
 	}
 
 	findOptions := options.Find()
-	findOptions.SetLimit(regions.maxResults + 1)
+	findOptions.SetLimit(regions.maxResults() + 1)
 
-	cur, err := regions.collection.Find(regions.dbContext, query, findOptions)
+	cur, err := regions.collection.Find(regions.dbContext(), query, findOptions)
 	if err != nil {
 		return nil, fmt.Errorf("Not found")
 	}
 
-	for cur.Next(regions.dbContext) {
+	for cur.Next(regions.dbContext()) {
 		var region Region
 		cur.Decode(&region)
 		result = append(result, &region)
 	}
 
-	cur.Close(regions.dbContext)
+	cur.Close(regions.dbContext())
 
-	if int64(len(result)) > regions.maxResults {
+	if int64(len(result)) > regions.maxResults() {
 		return nil, fmt.Errorf("Too many results")
 	}
 
@@ -174,7 +197,7 @@ func (regions *Regions) importCSVLine(line []string, lineNumber int) error {
 
 	// Dump in mongo
 	_, err = regions.collection.UpdateOne(
-		regions.dbContext,
+		regions.dbContext(),
 		bson.D{{Key: "iso-region-code", Value: region.RegionCode}},
 		bson.M{"$set": region},
 		options.Update().SetUpsert(true))
@@ -189,15 +212,22 @@ func (regions *Regions) importCSVLine(line []string, lineNumber int) error {
 // ImportCSV initializes the database from a CSV-file
 func (regions *Regions) ImportCSV() error {
 	// Open the regions.csv file
-	csvFile, err := os.Open(regions.csvFile)
+	csvFile, err := regions.csvFile()
 	if err != nil {
 		return err
 	}
 	defer csvFile.Close()
 
-	reader := csv.NewReader(bufio.NewReader(csvFile))
+	// Open the logfile
+	_, err = regions.logFile()
+	if err != nil {
+		return err
+	}
+
+	regions.logPrint("Start Import")
 
 	// Skip the headerline
+	reader := csv.NewReader(bufio.NewReader(csvFile))
 	line, err := reader.Read()
 	if err != nil {
 		return err
@@ -209,7 +239,7 @@ func (regions *Regions) ImportCSV() error {
 	line, err = reader.Read()
 	for err == nil {
 		err = regions.importCSVLine(line, lineNumber)
-		// TODO: Add logging
+		regions.logError(err)
 		line, err = reader.Read()
 		lineNumber++
 	}
@@ -218,5 +248,6 @@ func (regions *Regions) ImportCSV() error {
 		return err
 	}
 
+	regions.logPrint("End Import")
 	return nil
 }
