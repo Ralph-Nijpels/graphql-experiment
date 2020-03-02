@@ -74,9 +74,7 @@ type insertAirport struct {
 // NewAirports sets up the connection to the database
 func NewAirports(application *application.Context, countries *countries.Countries, regions *regions.Regions) *Airports {
 	airports := Airports{
-		context: application,
-		//		airportsCSV: application.AirportsCSV,
-		//		runwaysCSV:  application.RunwaysCSV,
+		context:   application,
 		countries: countries,
 		regions:   regions}
 
@@ -249,7 +247,7 @@ func (airports *Airports) importCSVLine(lineNumber int, line []string) error {
 	// Skip non-ICAO Airports
 	airportCode, err := datatypes.ICAOAirportCode(line[1], false, false)
 	if err != nil {
-		return fmt.Errorf("Airport[%d].IATA-Airport(%s): %v", lineNumber, line[1], err)
+		return fmt.Errorf("Airport[%d].ICAO-Airport(%s): %v", lineNumber, line[1], err)
 	}
 
 	// Fill only valid IATA codes

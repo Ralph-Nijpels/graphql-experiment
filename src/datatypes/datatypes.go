@@ -78,7 +78,7 @@ func ICAOAirportCode(s string, partial bool, empty bool) (string, error) {
 		return "", fmt.Errorf("Invalid ICAO Airport Code")
 	}
 	// Short
-	if result.Len() > 0 && result.Len() < 4 && !partial {
+	if result.Len() > 0 && result.Len() < 2 && !partial {
 		return "", fmt.Errorf("Invalid ICAO Airport Code")
 	}
 	// Long
@@ -152,7 +152,7 @@ func RunwayLength(s string, empty bool) (int, error) {
 
 	// Check between 1ft and 30000ft (roughly 10KM)
 	length := int(value)
-	if length <= 0 || length > 30000 {
+	if length <= 0 || (length == 0 && !empty) || length > 30000 {
 		return 0, fmt.Errorf("Invalid Runway Length")
 	}
 	return length, nil
@@ -175,10 +175,10 @@ func RunwayWidth(s string, empty bool) (int, error) {
 		return 0, fmt.Errorf("Invalid Runway Width")
 	}
 
-	// Check between 0 and 3000ft (roughly 1KM)
+	// Check between 0 and 30000ft (roughly 10KM)
 	width := int(value)
-	if width < 0 || (width == 0 && !empty) || width > 3000 {
-		return 0, fmt.Errorf("Invalid Runway Length")
+	if width < 0 || (width == 0 && !empty) || width > 30000 {
+		return 0, fmt.Errorf("Invalid Runway Width")
 	}
 	return width, nil
 }

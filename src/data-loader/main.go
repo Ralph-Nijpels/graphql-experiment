@@ -27,8 +27,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fmt.Printf("%v\n", *context)
-
 	fmt.Println("Loading countries..")
 	countries := countries.NewCountries(context)
 	err = countries.ImportCSV()

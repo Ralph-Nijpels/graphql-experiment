@@ -100,17 +100,17 @@ func (runways *Runways) importCSVLine(lineNumber int, line []string) error {
 		return fmt.Errorf("Runway[%d].Length(%s): %v", lineNumber, line[3], err)
 	}
 
-	runwayWidth, err := datatypes.RunwayWidth(line[4], false)
+	runwayWidth, err := datatypes.RunwayWidth(line[4], true)
 	if err != nil {
 		return fmt.Errorf("Runway[%d].Width(%s): %v", lineNumber, line[4], err)
 	}
 
-	runwayLighted, err := datatypes.RunwayLighted(line[6], false)
+	runwayLighted, err := datatypes.RunwayLighted(line[6], true)
 	if err != nil {
 		return fmt.Errorf("Runway[%d].Lighted(%s): %v", lineNumber, line[6], err)
 	}
 
-	runwayClosed, err := datatypes.RunwayClosed(line[7], false)
+	runwayClosed, err := datatypes.RunwayClosed(line[7], true)
 	if err != nil {
 		return fmt.Errorf("Runway[%d].Closed(%s): %v", lineNumber, line[7], err)
 	}

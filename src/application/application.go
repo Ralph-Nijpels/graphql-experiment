@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
+	"strings"
+	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -94,15 +97,66 @@ func GetContext() (*Context, error) {
 
 }
 
-// LogFile creates a new logfile for the given topic in the logfolder
-// TODO: add date and sequence number to the file name
-func (context *Context) LogFile(topic string) (*os.File, error) {
-	logFile, err := os.Create(fmt.Sprintf("%s/%s.log", context.LogFolder, topic))
-
+func (context *Context) openLogFolder() (*os.File, error) {
+	logDir, err := os.Open(context.LogFolder)
 	if err != nil {
-		log.SetOutput(logFile)
+		return nil, err
 	}
 
+	logDirStat, err := logDir.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if !logDirStat.IsDir() {
+		return nil, fmt.Errorf("Not a directory")
+	}
+
+	return logDir, nil
+}
+
+func (context *Context) lastLogNumber(logDir *os.File, topic string) (int64, error) {
+	logFileNames, err := logDir.Readdirnames(-1)
+	if err != nil {
+		return 0, err
+	}
+
+	highestLogNumber := int64(0)
+	for _, logFileName := range logFileNames {
+		if strings.HasPrefix(logFileName, topic) && strings.HasSuffix(logFileName, ".log") {
+			logFileParts := strings.Split(strings.TrimSuffix(logFileName, ".log"), "-")
+			if len(logFileParts) == 3 {
+				logFileNumber, _ := strconv.ParseInt(logFileParts[2], 10, 64)
+				if logFileNumber > highestLogNumber {
+					highestLogNumber = logFileNumber
+				}
+			}
+		}
+	}
+
+	return highestLogNumber, nil
+}
+
+// LogFile creates a new logfile for the given topic in the logfolder
+func (context *Context) LogFile(topic string) (*os.File, error) {
+
+	logDate := time.Now().Format("20060102")
+
+	logDir, err := context.openLogFolder()
+	if err != nil {
+		log.Panicf("Could not open log folder: %v\n", err)
+	}
+
+	logFileNumber, err := context.lastLogNumber(logDir, topic)
+	if err != nil {
+		log.Panicf("Could not open log folder: %v\n", err)
+	}
+
+	logFile, err := os.Create(fmt.Sprintf("%s/%s-%s-%04d.log", context.LogFolder, topic, logDate, logFileNumber+1))
+	if err != nil {
+		return nil, err
+	}
+
+	log.SetOutput(logFile)
 	return logFile, err
 }
 
