@@ -54,5 +54,12 @@ func main() {
 		log.Fatal(err)
 	}
 
+	fmt.Println("Loading frequencies..")
+	frequencies := airports.NewFrequencies()
+	err = frequencies.ImportCSV()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	fmt.Println("Data loaded.")
 }

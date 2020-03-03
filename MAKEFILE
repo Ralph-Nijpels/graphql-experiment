@@ -27,6 +27,7 @@ $(BIN)\data-loader.exe: \
 	$(SRC)\datatypes\datatypes.go \
 	$(SRC)\airports\airports.go \
 	$(SRC)\airports\runways.go \
+	$(SRC)\airports\frequencies.go \
 	$(SRC)\countries\countries.go \
 	$(SRC)\countries\regions.go
 	echo Data-loader..
@@ -38,6 +39,7 @@ $(BIN)\geography-rest.exe: \
 	$(SRC)\datatypes\datatypes.go \
 	$(SRC)\airports\airports.go \
 	$(SRC)\airports\runways.go \
+	$(SRC)\airports\frequencies.go \
 	$(SRC)\countries\countries.go \
 	$(SRC)\countries\regions.go
 	echo Geography-rest..

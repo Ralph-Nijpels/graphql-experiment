@@ -83,14 +83,8 @@ func (runways *Runways) importCSVLine(lineNumber int, line []string) error {
 		return nil
 	}
 
-	// Check for valid ICAO code
-	airportCode, err := datatypes.ICAOAirportCode(line[2], false, false)
-	if err != nil {
-		return fmt.Errorf("Runway[%d].AirportCode(%s): %v", lineNumber, line[2], err)
-	}
-
 	// Fetch the airport
-	airport, err := runways.parent.GetByAirportCode(airportCode)
+	airport, err := runways.parent.GetByAirportCode(line[2])
 	if err != nil {
 		return fmt.Errorf("Runway[%d].AirportCode(%s): %v", lineNumber, line[2], err)
 	}

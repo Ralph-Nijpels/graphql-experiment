@@ -47,6 +47,7 @@ type Airport struct {
 	Website      string             `bson:"website" json:"website,omitempty"`
 	Wikipedia    string             `bson:"wikipedia" json:"wikipedia,omitempty"`
 	Runways      []*Runway          `bson:"runways" json:"runways,omitempty"`
+	Frequencies  []*Frequency       `bson:"frequencies" json:"frequencies,omitempty"`
 }
 
 // insertAirport is the internal representation for an ICAO-airport used for importing

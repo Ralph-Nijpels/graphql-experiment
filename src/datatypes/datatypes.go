@@ -354,3 +354,29 @@ func Elevation(s string, empty bool) (int, error) {
 
 	return elevation, nil
 }
+
+// Frequency translates a string to a valid civil aircraft frequency
+func Frequency(s string, empty bool) (float64, error) {
+	// Clean up string
+	text := strings.TrimSpace(s)
+	if len(text) == 0 {
+		if !empty {
+			return 0.0, fmt.Errorf("Invalid Frequency")
+		}
+		return 0.0, nil
+	}
+
+	// Extract number
+	frequency, err := strconv.ParseFloat(text, 64)
+	if err != nil {
+		return 0.0, fmt.Errorf("Invalid Frequency")
+	}
+
+	// Must be between 118.0 and 137.0MHz (Civil aircraft communications band)
+	if frequency < 118.0 || frequency > 137.0 {
+		return 0.0, fmt.Errorf("Invalid Frequency")
+	}
+
+	return frequency, nil
+
+}
