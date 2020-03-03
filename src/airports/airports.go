@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -16,7 +17,6 @@ import (
 	"../application"
 	"../countries"
 	"../datatypes"
-	"../regions"
 )
 
 // airports implements the Airport Datamodel
@@ -26,7 +26,7 @@ type Airports struct {
 	context    *application.Context
 	collection *mongo.Collection
 	countries  *countries.Countries
-	regions    *regions.Regions
+	regions    *countries.Regions
 }
 
 // Airport is the external representation for an ICAO-airport including both a bson (for mongo)
@@ -41,7 +41,6 @@ type Airport struct {
 	Elevation    float64            `bson:"elevation" json:"elevation,omitempty"`
 	Country      primitive.ObjectID `bson:"country-id" json:"-"`
 	CountryCode  string             `bson:"iso-country-code" json:"iso-country-code"`
-	Region       primitive.ObjectID `bson:"region-id" json:"-"`
 	RegionCode   string             `bson:"iso-region-code" json:"iso-region-code,omitempty"`
 	Municipality string             `bson:"municipality" json:"municipality,omitempty"`
 	IATA         string             `bson:"iata-airport-code" json:"iata-airport-code,omitempty"`
@@ -63,7 +62,6 @@ type insertAirport struct {
 	Elevation    int                `bson:"elevation"`
 	Country      primitive.ObjectID `bson:"country-id"`
 	CountryCode  string             `bson:"iso-country-code"`
-	Region       primitive.ObjectID `bson:"region-id"`
 	RegionCode   string             `bson:"iso-region-code"`
 	Municipality string             `bson:"municipality"`
 	IATA         string             `bson:"iata-airport-code"`
@@ -72,7 +70,7 @@ type insertAirport struct {
 }
 
 // NewAirports sets up the connection to the database
-func NewAirports(application *application.Context, countries *countries.Countries, regions *regions.Regions) *Airports {
+func NewAirports(application *application.Context, countries *countries.Countries, regions *countries.Regions) *Airports {
 	airports := Airports{
 		context:   application,
 		countries: countries,
@@ -263,9 +261,19 @@ func (airports *Airports) importCSVLine(lineNumber int, line []string) error {
 	}
 
 	// Check for valid Region
-	region, err := airports.regions.GetByRegionCode(line[9])
-	if err != nil {
-		return fmt.Errorf("Airport[%d].Region(%s): %v", lineNumber, line[9], err)
+	// The region key in the file is composed from the CountryCode and RegionCode
+	regionKey := strings.Split(line[9], "-")
+	if len(regionKey) != 2 {
+		return fmt.Errorf("Airport[%d].Region(%s): %s", lineNumber, line[9], "Bad region key")
+	}
+	var region *countries.Region
+	for i := range country.Regions {
+		if country.Regions[i].RegionCode == regionKey[1] {
+			region = country.Regions[i]
+		}
+	}
+	if region == nil {
+		return fmt.Errorf("Airport[%d].Region(%s): %v", lineNumber, line[9], "not found")
 	}
 
 	// Check Lattitude
@@ -296,7 +304,6 @@ func (airports *Airports) importCSVLine(lineNumber int, line []string) error {
 		Elevation:    elevation,
 		Country:      country.Country,
 		CountryCode:  country.CountryCode,
-		Region:       region.Region,
 		RegionCode:   region.RegionCode,
 		Municipality: line[10],
 		IATA:         airportIATA,

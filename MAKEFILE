@@ -28,7 +28,7 @@ $(BIN)\data-loader.exe: \
 	$(SRC)\airports\airports.go \
 	$(SRC)\airports\runways.go \
 	$(SRC)\countries\countries.go \
-	$(SRC)\regions\regions.go
+	$(SRC)\countries\regions.go
 	echo Data-loader..
 	go build -o $(BIN)\data-loader.exe $(SRC)\data-loader\main.go
 
@@ -39,7 +39,7 @@ $(BIN)\geography-rest.exe: \
 	$(SRC)\airports\airports.go \
 	$(SRC)\airports\runways.go \
 	$(SRC)\countries\countries.go \
-	$(SRC)\regions\regions.go
+	$(SRC)\countries\regions.go
 	echo Geography-rest..
 	go build -o $(BIN)\geography-rest.exe $(SRC)\geography-rest\main.go
 

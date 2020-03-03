@@ -33,6 +33,7 @@ type Country struct {
 	CountryName string             `bson:"country-name" json:"country-name"`
 	Continent   string             `bson:"continent" json:"continent"`
 	Wikipedia   string             `bson:"wikipedia" json:"wikipedia,omitempty"`
+	Regions     []*Region          `bson:"regions" json:"regions,omitempty"`
 }
 
 // insertCountry is the internal representation for an ISO-Country

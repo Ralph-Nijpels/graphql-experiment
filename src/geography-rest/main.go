@@ -10,11 +10,10 @@ import (
 	"../airports"
 	"../application"
 	"../countries"
-	"../regions"
 )
 
 var theCountries *countries.Countries
-var theRegions *regions.Regions
+var theRegions *countries.Regions
 var theAirports *airports.Airports
 
 func getCountries(w http.ResponseWriter, r *http.Request) {
@@ -48,39 +47,6 @@ func getCountry(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	result := json.NewEncoder(w)
 	result.Encode(country)
-}
-
-func getRegions(w http.ResponseWriter, r *http.Request) {
-	countryCode := r.FormValue("country")
-	fromRegion := r.FormValue("from")
-	untilRegion := r.FormValue("until")
-
-	regionList, err := theRegions.GetList(countryCode, fromRegion, untilRegion)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	result := json.NewEncoder(w)
-	result.Encode(regionList)
-}
-
-func getRegion(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	regionCode := vars["region-code"]
-
-	region, err := theRegions.GetByRegionCode(regionCode)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	result := json.NewEncoder(w)
-	result.Encode(region)
 }
 
 func getAirports(w http.ResponseWriter, r *http.Request) {
@@ -128,14 +94,12 @@ func main() {
 	}
 
 	theCountries = countries.NewCountries(context)
-	theRegions = regions.NewRegions(context, theCountries)
+	theRegions = theCountries.NewRegions()
 	theAirports = airports.NewAirports(context, theCountries, theRegions)
 
 	myRouter := mux.NewRouter()
 	myRouter.HandleFunc("/geography/countries", getCountries).Methods("GET")
 	myRouter.HandleFunc("/geography/countries/{country-code}", getCountry).Methods("GET")
-	myRouter.HandleFunc("/geography/regions", getRegions).Methods("GET")
-	myRouter.HandleFunc("/geography/regions/{region-code}", getRegion).Methods("GET")
 	myRouter.HandleFunc("/geography/airports", getAirports).Methods("GET")
 	myRouter.HandleFunc("/geography/airports/{airport-code}", getAirport).Methods("GET")
 

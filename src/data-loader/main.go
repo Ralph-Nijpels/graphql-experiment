@@ -16,7 +16,6 @@ import (
 	"../airports"
 	"../application"
 	"../countries"
-	"../regions"
 )
 
 func main() {
@@ -35,7 +34,7 @@ func main() {
 	}
 
 	fmt.Println("Loading regions..")
-	regions := regions.NewRegions(context, countries)
+	regions := countries.NewRegions()
 	err = regions.ImportCSV()
 	if err != nil {
 		log.Fatal(err)

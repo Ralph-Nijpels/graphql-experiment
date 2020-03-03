@@ -209,14 +209,15 @@ func (runways *Runways) importCSVLine(lineNumber int, line []string) error {
 	}
 
 	// replace or add runway...
-	var i int
+	found := false
 	for i := range airport.Runways {
 		if airport.Runways[i].LowEnd.RunwayCode == runway.LowEnd.RunwayCode {
 			airport.Runways[i] = &runway
+			found = true
 			break
 		}
 	}
-	if i > len(airport.Runways) {
+	if !found {
 		airport.Runways = append(airport.Runways, &runway)
 	}
 
