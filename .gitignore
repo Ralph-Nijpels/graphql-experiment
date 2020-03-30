@@ -1,8 +1,5 @@
 TODO
-.vs/slnx.sqlite
-.vs/VSWorkspaceState.json
-.vs/graphql-experiment/v16/.suo
-.vscode/launch.json
-bin/data-loader.exe
-bin/geography-rest.exe
+.vs/*
+.vscode/*
+bin/*
 etc/*

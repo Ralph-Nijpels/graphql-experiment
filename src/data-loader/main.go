@@ -41,7 +41,7 @@ func main() {
 	}
 
 	fmt.Println("Loading airports..")
-	airports := airports.NewAirports(context, countries, regions)
+	airports := airports.NewAirports(context, countries)
 	err = airports.ImportCSV()
 	if err != nil {
 		log.Fatal(err)

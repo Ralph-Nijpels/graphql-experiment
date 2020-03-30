@@ -26,7 +26,6 @@ type Airports struct {
 	context    *application.Context
 	collection *mongo.Collection
 	countries  *countries.Countries
-	regions    *countries.Regions
 }
 
 // Airport is the external representation for an ICAO-airport including both a bson (for mongo)
@@ -71,11 +70,10 @@ type insertAirport struct {
 }
 
 // NewAirports sets up the connection to the database
-func NewAirports(application *application.Context, countries *countries.Countries, regions *countries.Regions) *Airports {
+func NewAirports(application *application.Context, countries *countries.Countries) *Airports {
 	airports := Airports{
 		context:   application,
-		countries: countries,
-		regions:   regions}
+		countries: countries}
 
 	// Setup the Airport Collection
 	airports.collection = application.DBClient.Database("flight-schedule").Collection("airports")

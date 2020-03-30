@@ -9,6 +9,7 @@ SRC = src
 all: \
 	gorilla-mux \
 	mongo-driver \
+	graphql-driver \
 	$(BIN)\data-loader.exe \
 	$(BIN)\geography-rest.exe
 	echo Done!
@@ -20,6 +21,10 @@ gorilla-mux:
 mongo-driver:
 	echo Mongo-driver..
 	go get go.mongodb.org/mongo-driver/mongo
+
+graphql-driver:
+	echo Graphql-driver..
+	go get github.com/graphql-go/graphql
 
 $(BIN)\data-loader.exe: \
 	$(SRC)\data-loader\main.go \
@@ -35,6 +40,7 @@ $(BIN)\data-loader.exe: \
 
 $(BIN)\geography-rest.exe: \
 	$(SRC)\geography-rest\main.go \
+	$(SRC)\graphql\graphql.go \
 	$(SRC)\application\application.go \
 	$(SRC)\datatypes\datatypes.go \
 	$(SRC)\airports\airports.go \

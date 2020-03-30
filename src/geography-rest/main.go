@@ -10,10 +10,12 @@ import (
 	"../airports"
 	"../application"
 	"../countries"
+	"../graphql"
 )
 
 var theCountries *countries.Countries
-var theRegions *countries.Regions
+
+//var theRegions *countries.Regions
 var theAirports *airports.Airports
 
 func getCountries(w http.ResponseWriter, r *http.Request) {
@@ -94,14 +96,16 @@ func main() {
 	}
 
 	theCountries = countries.NewCountries(context)
-	theRegions = theCountries.NewRegions()
-	theAirports = airports.NewAirports(context, theCountries, theRegions)
+	theAirports = airports.NewAirports(context, theCountries)
+
+	graphql.Init(theCountries)
 
 	myRouter := mux.NewRouter()
 	myRouter.HandleFunc("/geography/countries", getCountries).Methods("GET")
 	myRouter.HandleFunc("/geography/countries/{country-code}", getCountry).Methods("GET")
 	myRouter.HandleFunc("/geography/airports", getAirports).Methods("GET")
 	myRouter.HandleFunc("/geography/airports/{airport-code}", getAirport).Methods("GET")
+	myRouter.HandleFunc("/geography/graphql", graphql.Handler).Methods("POST")
 
 	http.ListenAndServe(":8090", myRouter)
 
