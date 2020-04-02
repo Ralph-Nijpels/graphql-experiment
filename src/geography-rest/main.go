@@ -98,7 +98,7 @@ func main() {
 	theCountries = countries.NewCountries(context)
 	theAirports = airports.NewAirports(context, theCountries)
 
-	graphql.Init(theCountries)
+	graphql.Init(theCountries, theAirports)
 
 	myRouter := mux.NewRouter()
 	myRouter.HandleFunc("/geography/countries", getCountries).Methods("GET")

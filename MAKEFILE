@@ -41,6 +41,11 @@ $(BIN)\data-loader.exe: \
 $(BIN)\geography-rest.exe: \
 	$(SRC)\geography-rest\main.go \
 	$(SRC)\graphql\graphql.go \
+	$(SRC)\graphql\CountryType.go \
+	$(SRC)\graphql\RegionType.go \
+	$(SRC)\graphql\AirportType.go \
+	$(SRC)\graphql\RunwayType.go \
+	$(SRC)\graphql\FrequencyType.go \
 	$(SRC)\application\application.go \
 	$(SRC)\datatypes\datatypes.go \
 	$(SRC)\airports\airports.go \

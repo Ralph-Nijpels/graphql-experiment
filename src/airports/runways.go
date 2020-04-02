@@ -20,7 +20,7 @@ type Runways struct {
 	parent *Airports
 }
 
-// Runway is the external representation of a runway belonging to an Airport
+// Runway is the database representation of a runway belonging to an Airport
 type Runway struct {
 	Length  int         `bson:"length" json:"length"`
 	Width   int         `bson:"width" json:"width"`
@@ -39,6 +39,22 @@ type RunwaySide struct {
 	Elevation  int     `bson:"elevation" json:"elevation,omitempty"`
 	Heading    int     `bson:"heading" json:"heading,omitempty"`
 	Threshold  int     `bson:"threshold" json:"threshold,omitempty"`
+}
+
+// RunwayView expresses a model where the runway is flattened to view it from both sides
+type RunwayView struct {
+	RunwayCode    string  `json:"runway-code"`
+	AltRunwayCode string  `json:"alt-runway-code"`
+	Latitude      float64 `json:"latitude,omitempty"`
+	Longitude     float64 `json:"longitude,omitempty"`
+	Elevation     int     `json:"elevation,omitempty"`
+	Heading       int     `json:"heading,omitempty"`
+	Threshold     int     `json:"threshold,omitempty"`
+	Length        int     `json:"length"`
+	Width         int     `json:"width"`
+	Surface       string  `json:"surface"`
+	Lighted       bool    `json:"lighted"`
+	Closed        bool    `json:"closed"`
 }
 
 // NewRunways initializes the collection of runways
@@ -270,4 +286,51 @@ func (runways *Runways) ImportCSV() error {
 	runways.logPrint("End Import")
 
 	return nil
+}
+
+// Some functions on the Runway itself
+
+// AsRunwayView changes the runway into a more flattened model
+func AsRunwayView(runway *Runway) []*RunwayView {
+	var result []*RunwayView
+
+	if len(runway.LowEnd.RunwayCode) > 0 {
+		var runwayView RunwayView
+
+		runwayView.RunwayCode = runway.LowEnd.RunwayCode
+		runwayView.AltRunwayCode = runway.HighEnd.RunwayCode
+		runwayView.Latitude = runway.LowEnd.Latitude
+		runwayView.Longitude = runway.LowEnd.Longitude
+		runwayView.Elevation = runway.LowEnd.Elevation
+		runwayView.Heading = runway.LowEnd.Heading
+		runwayView.Threshold = runway.LowEnd.Threshold
+		runwayView.Length = runway.Length
+		runwayView.Width = runway.Width
+		runwayView.Surface = runway.Surface
+		runwayView.Lighted = runway.Lighted
+		runwayView.Closed = runway.Closed
+
+		result = append(result, &runwayView)
+	}
+
+	if len(runway.HighEnd.RunwayCode) > 0 {
+		var runwayView RunwayView
+
+		runwayView.RunwayCode = runway.HighEnd.RunwayCode
+		runwayView.AltRunwayCode = runway.LowEnd.RunwayCode
+		runwayView.Latitude = runway.HighEnd.Latitude
+		runwayView.Longitude = runway.HighEnd.Longitude
+		runwayView.Elevation = runway.HighEnd.Elevation
+		runwayView.Heading = runway.HighEnd.Heading
+		runwayView.Threshold = runway.HighEnd.Threshold
+		runwayView.Length = runway.Length
+		runwayView.Width = runway.Width
+		runwayView.Surface = runway.Surface
+		runwayView.Lighted = runway.Lighted
+		runwayView.Closed = runway.Closed
+
+		result = append(result, &runwayView)
+	}
+
+	return result
 }

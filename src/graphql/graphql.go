@@ -7,82 +7,12 @@ import (
 
 	"github.com/graphql-go/graphql"
 
+	"../airports"
 	"../countries"
 )
 
 var theCountries *countries.Countries
-
-var regionType = graphql.NewObject(
-	graphql.ObjectConfig{
-		Name: "Region",
-		Fields: graphql.Fields{
-			"RegionCode": &graphql.Field{
-				Type: graphql.String,
-			},
-			"RegionName": &graphql.Field{
-				Type: graphql.String,
-			},
-			"Wikipedia": &graphql.Field{
-				Type: graphql.String,
-			},
-		},
-	})
-
-var countryType = graphql.NewObject(
-	graphql.ObjectConfig{
-		Name: "Country",
-		Fields: graphql.Fields{
-			"CountryCode": &graphql.Field{
-				Type: graphql.String,
-			},
-			"CountryName": &graphql.Field{
-				Type: graphql.String,
-			},
-			"Continent": &graphql.Field{
-				Type: graphql.String,
-			},
-			"Wikipedia": &graphql.Field{
-				Type: graphql.String,
-			},
-			"Regions": &graphql.Field{
-				Type: graphql.NewList(regionType),
-				Args: graphql.FieldConfigArgument{
-					"FromRegionCode": &graphql.ArgumentConfig{
-						Type: graphql.String,
-					},
-					"UntilRegionCode": &graphql.ArgumentConfig{
-						Type: graphql.String,
-					},
-				},
-				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
-					country := p.Source.(*countries.Country)
-					fromRegionCode, ok := p.Args["FromRegionCode"]
-
-					if !ok {
-						fromRegionCode = ""
-					}
-
-					untilRegionCode, ok := p.Args["UntilRegionCode"]
-					if !ok {
-						untilRegionCode = "ZZ"
-					}
-
-					var result []*countries.Region
-					for _, region := range country.Regions {
-						if region.RegionCode >= fromRegionCode.(string) && region.RegionCode <= untilRegionCode.(string) {
-							result = append(result, region)
-						}
-					}
-
-					if len(result) == 0 {
-						return nil, fmt.Errorf("Not found")
-					}
-
-					return result, nil
-				},
-			},
-		},
-	})
+var theAirports *airports.Airports
 
 var queryType = graphql.NewObject(
 	graphql.ObjectConfig{
@@ -161,7 +91,37 @@ var queryType = graphql.NewObject(
 							return region, nil
 						}
 					}
-					return nil, fmt.Errorf("Not found")
+					return nil, fmt.Errorf("Region:Not found")
+				},
+			},
+			"airport": &graphql.Field{
+				Type: airportType,
+				Args: graphql.FieldConfigArgument{
+					"ICAOCode": &graphql.ArgumentConfig{
+						Type: graphql.String,
+					},
+					"IATACode": &graphql.ArgumentConfig{
+						Type: graphql.String,
+					},
+				},
+				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+					airportCode, ok := p.Args["ICAOCode"]
+					if ok {
+						airport, err := theAirports.GetByAirportCode(airportCode.(string))
+						if err != nil {
+							return nil, fmt.Errorf("Airport(%s): %v", airportCode.(string), err)
+						}
+						return airport, nil
+					}
+					iataCode, ok := p.Args["IATACode"]
+					if ok {
+						airport, err := theAirports.GetByIATACode(iataCode.(string))
+						if err != nil {
+							return nil, fmt.Errorf("Airport(%s): %v", iataCode.(string), err)
+						}
+						return airport, nil
+					}
+					return nil, fmt.Errorf("Airport: Missing AirportCode or IATACode parameter")
 				},
 			},
 		},
@@ -193,8 +153,21 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	result.Encode(output)
 }
 
+
 // Init does it
-func Init(countries *countries.Countries) error {
+func Init(countries *countries.Countries, airports *airports.Airports) error {
+
+	// Register link to the database
 	theCountries = countries
+	theAirports = airports
+
+	// Add referencials to prevent circular references
+	addCountryToRegion()
+	addCountryToAirport()
+	addAirportToCountry()
+	addAirportToRegion()
+	addAirportToRunway()
+	addAirportToFrequency()
+
 	return nil
 }
