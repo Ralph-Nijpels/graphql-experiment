@@ -26,6 +26,51 @@ var countryType = graphql.NewObject(
 		},
 	})
 
+var countryQuery = &graphql.Field{
+	Type: countryType,
+	Args: graphql.FieldConfigArgument{
+		"CountryCode": &graphql.ArgumentConfig{
+			Type: graphql.String,
+		},
+	},
+	Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+		countryCode, ok := p.Args["CountryCode"]
+		if !ok {
+			return nil, fmt.Errorf("Missing CountryCode parameter")
+		}
+		country, err := theCountries.GetByCountryCode(countryCode.(string))
+		if err != nil {
+			return nil, err
+		}
+		return country, nil
+	}}
+
+var countriesQuery = &graphql.Field{
+	Type: graphql.NewList(countryType),
+	Args: graphql.FieldConfigArgument{
+		"FromCountryCode": &graphql.ArgumentConfig{
+			Type: graphql.String,
+		},
+		"UntilCountryCode": &graphql.ArgumentConfig{
+			Type: graphql.String,
+		},
+	},
+	Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+		fromCountryCode, ok := p.Args["FromCountryCode"]
+		if !ok {
+			return nil, fmt.Errorf("Missing FromCountryCode parameter")
+		}
+		untilCountryCode, ok := p.Args["UntilCountryCode"]
+		if !ok {
+			return nil, fmt.Errorf("Missing UntilCountryCode parameter")
+		}
+		countries, err := theCountries.GetList(fromCountryCode.(string), untilCountryCode.(string))
+		if err != nil {
+			return nil, err
+		}
+		return countries, nil
+	}}
+	
 func addCountryToRegion() {
 	countryType.AddFieldConfig("Regions", &graphql.Field{
 		Type: graphql.NewList(regionType),
@@ -39,8 +84,8 @@ func addCountryToRegion() {
 		},
 		Resolve: func(p graphql.ResolveParams) (interface{}, error) {
 			country := p.Source.(*countries.Country)
-			fromRegionCode, ok := p.Args["FromRegionCode"]
 
+			fromRegionCode, ok := p.Args["FromRegionCode"]
 			if !ok {
 				fromRegionCode = ""
 			}
@@ -117,5 +162,4 @@ func addCountryToAirport() {
 			return result, nil
 		},
 	})
-
 }

@@ -41,8 +41,10 @@ type RunwaySide struct {
 	Threshold  int     `bson:"threshold" json:"threshold,omitempty"`
 }
 
-// RunwayView expresses a model where the runway is flattened to view it from both sides
+// RunwayView expresses a model where the runway is flattened and made independent
+// from the airport to be more suitable for graphql.
 type RunwayView struct {
+	AirportCode   string  `json:"icao-airport-code"`
 	RunwayCode    string  `json:"runway-code"`
 	AltRunwayCode string  `json:"alt-runway-code"`
 	Latitude      float64 `json:"latitude,omitempty"`
@@ -291,12 +293,13 @@ func (runways *Runways) ImportCSV() error {
 // Some functions on the Runway itself
 
 // AsRunwayView changes the runway into a more flattened model
-func AsRunwayView(runway *Runway) []*RunwayView {
+func AsRunwayView(airport *Airport, runway *Runway) []*RunwayView {
 	var result []*RunwayView
 
 	if len(runway.LowEnd.RunwayCode) > 0 {
 		var runwayView RunwayView
 
+		runwayView.AirportCode = airport.AirportCode
 		runwayView.RunwayCode = runway.LowEnd.RunwayCode
 		runwayView.AltRunwayCode = runway.HighEnd.RunwayCode
 		runwayView.Latitude = runway.LowEnd.Latitude
@@ -316,6 +319,7 @@ func AsRunwayView(runway *Runway) []*RunwayView {
 	if len(runway.HighEnd.RunwayCode) > 0 {
 		var runwayView RunwayView
 
+		runwayView.AirportCode = airport.AirportCode
 		runwayView.RunwayCode = runway.HighEnd.RunwayCode
 		runwayView.AltRunwayCode = runway.LowEnd.RunwayCode
 		runwayView.Latitude = runway.HighEnd.Latitude

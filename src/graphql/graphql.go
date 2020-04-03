@@ -14,116 +14,19 @@ import (
 var theCountries *countries.Countries
 var theAirports *airports.Airports
 
+// The definition of the queries ------------------------------------------------------------------
+
 var queryType = graphql.NewObject(
 	graphql.ObjectConfig{
 		Name: "Query",
 		Fields: graphql.Fields{
-			"country": &graphql.Field{
-				Type: countryType,
-				Args: graphql.FieldConfigArgument{
-					"CountryCode": &graphql.ArgumentConfig{
-						Type: graphql.String,
-					},
-				},
-				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
-					countryCode, ok := p.Args["CountryCode"]
-					if !ok {
-						return nil, fmt.Errorf("Missing CountryCode parameter")
-					}
-					country, err := theCountries.GetByCountryCode(countryCode.(string))
-					if err != nil {
-						return nil, err
-					}
-					return country, nil
-				},
-			},
-			"countries": &graphql.Field{
-				Type: graphql.NewList(countryType),
-				Args: graphql.FieldConfigArgument{
-					"FromCountryCode": &graphql.ArgumentConfig{
-						Type: graphql.String,
-					},
-					"UntilCountryCode": &graphql.ArgumentConfig{
-						Type: graphql.String,
-					},
-				},
-				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
-					fromCountryCode, ok := p.Args["FromCountryCode"]
-					if !ok {
-						return nil, fmt.Errorf("Missing FromCountryCode parameter")
-					}
-					untilCountryCode, ok := p.Args["UntilCountryCode"]
-					if !ok {
-						return nil, fmt.Errorf("Missing UntilCountryCode parameter")
-					}
-					countries, err := theCountries.GetList(fromCountryCode.(string), untilCountryCode.(string))
-					if err != nil {
-						return nil, err
-					}
-					return countries, nil
-				},
-			},
-			"region": &graphql.Field{
-				Type: regionType,
-				Args: graphql.FieldConfigArgument{
-					"CountryCode": &graphql.ArgumentConfig{
-						Type: graphql.String,
-					},
-					"RegionCode": &graphql.ArgumentConfig{
-						Type: graphql.String,
-					},
-				},
-				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
-					countryCode, ok := p.Args["CountryCode"]
-					if !ok {
-						return nil, fmt.Errorf("Missing CountryCode parameter")
-					}
-					regionCode, ok := p.Args["RegionCode"]
-					if !ok {
-						return nil, fmt.Errorf("Missing RegionCode parameter")
-					}
-					country, err := theCountries.GetByCountryCode(countryCode.(string))
-					if err != nil {
-						return nil, err
-					}
-					for _, region := range country.Regions {
-						if region.RegionCode == regionCode.(string) {
-							return region, nil
-						}
-					}
-					return nil, fmt.Errorf("Region:Not found")
-				},
-			},
-			"airport": &graphql.Field{
-				Type: airportType,
-				Args: graphql.FieldConfigArgument{
-					"ICAOCode": &graphql.ArgumentConfig{
-						Type: graphql.String,
-					},
-					"IATACode": &graphql.ArgumentConfig{
-						Type: graphql.String,
-					},
-				},
-				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
-					airportCode, ok := p.Args["ICAOCode"]
-					if ok {
-						airport, err := theAirports.GetByAirportCode(airportCode.(string))
-						if err != nil {
-							return nil, fmt.Errorf("Airport(%s): %v", airportCode.(string), err)
-						}
-						return airport, nil
-					}
-					iataCode, ok := p.Args["IATACode"]
-					if ok {
-						airport, err := theAirports.GetByIATACode(iataCode.(string))
-						if err != nil {
-							return nil, fmt.Errorf("Airport(%s): %v", iataCode.(string), err)
-						}
-						return airport, nil
-					}
-					return nil, fmt.Errorf("Airport: Missing AirportCode or IATACode parameter")
-				},
-			},
+			"country":   countryQuery,
+			"countries": countriesQuery,
+			"region":    regionQuery,
+			"airport":   airportQuery,
+			"airports":  airportsQuery,
+			"runway":    runwayQuery,
+			"runways":   runwaysQuery,
 		},
 	})
 
@@ -131,6 +34,8 @@ var schema, _ = graphql.NewSchema(
 	graphql.SchemaConfig{
 		Query: queryType,
 	})
+
+// The interface of this component ----------------------------------------------------------------
 
 // Handler resolves the calls to the graphql end-point
 func Handler(w http.ResponseWriter, r *http.Request) {
@@ -153,8 +58,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	result.Encode(output)
 }
 
-
-// Init does it
+// Init sets up the graphql module
 func Init(countries *countries.Countries, airports *airports.Airports) error {
 
 	// Register link to the database
@@ -168,6 +72,7 @@ func Init(countries *countries.Countries, airports *airports.Airports) error {
 	addAirportToRegion()
 	addAirportToRunway()
 	addAirportToFrequency()
+	addRunwayToAirport()
 
 	return nil
 }
