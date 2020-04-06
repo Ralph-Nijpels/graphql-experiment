@@ -3,6 +3,7 @@ package graphql
 import (
 	"fmt"
 
+	"../countries"
 	"github.com/graphql-go/graphql"
 )
 
@@ -21,6 +22,22 @@ var regionType = graphql.NewObject(
 			},
 		},
 	})
+
+func addRegionToCountry() {
+	regionType.AddFieldConfig("Country", &graphql.Field{
+		Type: countryType,
+		Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+			region := p.Source.(*countries.RegionView)
+
+			result, err := theCountries.GetByCountryCode(region.CountryCode)
+			if err != nil {
+				return nil, fmt.Errorf("Region.Country: %v", err)
+			}
+
+			return result, nil
+		},
+	})
+}
 
 var regionQuery = &graphql.Field{
 	Type: regionType,
@@ -47,7 +64,7 @@ var regionQuery = &graphql.Field{
 		}
 		for _, region := range country.Regions {
 			if region.RegionCode == regionCode.(string) {
-				return region, nil
+				return countries.AsRegionView(country, region), nil
 			}
 		}
 		return nil, fmt.Errorf("Region:Not found")

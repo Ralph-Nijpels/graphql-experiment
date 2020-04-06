@@ -68,6 +68,7 @@ func Init(countries *countries.Countries, airports *airports.Airports) error {
 	// Add referencials to prevent circular references
 	addCountryToRegion()
 	addCountryToAirport()
+	addRegionToCountry()
 	addAirportToCountry()
 	addAirportToRegion()
 	addAirportToRunway()
