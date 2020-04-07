@@ -20,13 +20,16 @@ var queryType = graphql.NewObject(
 	graphql.ObjectConfig{
 		Name: "Query",
 		Fields: graphql.Fields{
-			"country":   countryQuery,
-			"countries": countriesQuery,
-			"region":    regionQuery,
-			"airport":   airportQuery,
-			"airports":  airportsQuery,
-			"runway":    runwayQuery,
-			"runways":   runwaysQuery,
+			"country":     countryQuery,
+			"countries":   countriesQuery,
+			"region":      regionQuery,
+			"regions":     regionsQuery,
+			"airport":     airportQuery,
+			"airports":    airportsQuery,
+			"runway":      runwayQuery,
+			"runways":     runwaysQuery,
+			"frequency":   frequencyQuery,
+			"frequencies": frequenciesQuery,
 		},
 	})
 
@@ -65,15 +68,16 @@ func Init(countries *countries.Countries, airports *airports.Airports) error {
 	theCountries = countries
 	theAirports = airports
 
-	// Add referencials to prevent circular references
+	// Add referencials seperately to prevent circular references
 	addCountryToRegion()
-	addCountryToAirport()
 	addRegionToCountry()
+	addCountryToAirport()
 	addAirportToCountry()
 	addAirportToRegion()
 	addAirportToRunway()
-	addAirportToFrequency()
 	addRunwayToAirport()
+	addAirportToFrequency()
+	addFrequencyToAirport()
 
 	return nil
 }

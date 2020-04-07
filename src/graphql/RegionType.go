@@ -69,3 +69,61 @@ var regionQuery = &graphql.Field{
 		}
 		return nil, fmt.Errorf("Region:Not found")
 	}}
+
+var regionsQuery = &graphql.Field{
+	Type: graphql.NewList(regionType),
+	Args: graphql.FieldConfigArgument{
+		"FromCountryCode": &graphql.ArgumentConfig{
+			Type: graphql.String,
+		},
+		"UntilCountryCode": &graphql.ArgumentConfig{
+			Type: graphql.String,
+		},
+		"FromRegionCode": &graphql.ArgumentConfig{
+			Type: graphql.String,
+		},
+		"UntilRegionCode": &graphql.ArgumentConfig{
+			Type: graphql.String,
+		},
+	},
+	Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+
+		fromCountryCode, hasFromCountryCode := p.Args["FromCountryCode"]
+		untilCountryCode, hasUntilCountryCode := p.Args["UntilCountryCode"]
+		if !hasFromCountryCode && !hasUntilCountryCode {
+			return nil, fmt.Errorf("Missing From/Until CountryCode parameter")
+		}
+		if !hasFromCountryCode {
+			fromCountryCode = ""
+		}
+		if !hasUntilCountryCode {
+			untilCountryCode = ""
+		}
+
+		fromRegionCode, hasFromRegionCode := p.Args["FromRegionCode"]
+		untilRegionCode, hasUntilRegionCode := p.Args["UntilRegionCode"]
+		if !hasFromRegionCode {
+			fromRegionCode = ""
+		}
+		if !hasUntilRegionCode {
+			untilRegionCode = ""
+		}
+
+		var result []*countries.RegionView
+		countryList, err := theCountries.GetList(fromCountryCode.(string), untilCountryCode.(string))
+		if err != nil {
+			return nil, fmt.Errorf("Regions: %v", err)
+		}
+		for _, country := range countryList {
+			for _, region := range country.Regions {
+				if (!hasFromRegionCode || region.RegionCode >= fromRegionCode.(string)) && (!hasUntilRegionCode || region.RegionCode <= untilRegionCode.(string)) {
+					result = append(result, countries.AsRegionView(country, region))
+				}
+			}
+		}
+		if len(result) == 0 {
+			return nil, fmt.Errorf("Regions: Not found")
+		}
+
+		return result, nil
+	}}
