@@ -2,10 +2,10 @@ package countries
 
 import (
 	"bufio"
-	"context"
 	"encoding/csv"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -36,16 +36,6 @@ type Country struct {
 	Regions     []*Region          `bson:"regions" json:"regions,omitempty"`
 }
 
-// insertCountry is the internal representation for an ISO-Country
-// it ommits the Country(ID) from the structure to prevent race conditions while
-// upserting new countries.
-type insertCountry struct {
-	CountryCode string `bson:"iso-country-code"`
-	CountryName string `bson:"country-name"`
-	Continent   string `bson:"continent"`
-	Wikipedia   string `bson:"wikipedia"`
-}
-
 // NewCountries instantiates the connection to the database collection
 func NewCountries(application *application.Context) *Countries {
 	countries := Countries{context: application}
@@ -58,35 +48,6 @@ func NewCountries(application *application.Context) *Countries {
 	return &countries
 }
 
-// Below you find a number of support functions to simplify the code a little.
-func (countries *Countries) dbClient() *mongo.Client {
-	return countries.context.DBClient
-}
-
-func (countries *Countries) dbContext() context.Context {
-	return countries.context.DBContext
-}
-
-func (countries *Countries) maxResults() int64 {
-	return countries.context.MaxResults
-}
-
-func (countries *Countries) csvFile() (*os.File, error) {
-	return os.Open(countries.context.CountriesCSV)
-}
-
-func (countries *Countries) logFile() (*os.File, error) {
-	return countries.context.LogFile("countries")
-}
-
-func (countries *Countries) logPrint(s string) {
-	countries.context.LogPrintln(s)
-}
-
-func (countries *Countries) logError(err error) {
-	countries.context.LogError(err)
-}
-
 // GetByCountryCode retrieves a country based on a CountryCode.
 func (countries *Countries) GetByCountryCode(countryCode string) (*Country, error) {
 	var result Country
@@ -96,7 +57,7 @@ func (countries *Countries) GetByCountryCode(countryCode string) (*Country, erro
 		return nil, err
 	}
 
-	err = countries.collection.FindOne(countries.dbContext(),
+	err = countries.collection.FindOne(countries.context.DBContext,
 		bson.D{{Key: "iso-country-code", Value: countryCode}}).Decode(&result)
 
 	if err != nil {
@@ -130,22 +91,22 @@ func (countries *Countries) GetList(fromCountryCode string, untilCountryCode str
 	}
 
 	findOptions := options.Find()
-	findOptions.SetLimit(countries.maxResults() + 1)
+	findOptions.SetLimit(countries.context.MaxResults + 1)
 
-	cur, err := countries.collection.Find(countries.dbContext(), query, findOptions)
+	cur, err := countries.collection.Find(countries.context.DBContext, query, findOptions)
 	if err != nil {
 		return nil, fmt.Errorf("Not found")
 	}
 
-	for cur.Next(countries.dbContext()) {
+	for cur.Next(countries.context.DBContext) {
 		var country Country
 		cur.Decode(&country)
 		result = append(result, &country)
 	}
 
-	cur.Close(countries.dbContext())
+	cur.Close(countries.context.DBContext)
 
-	if int64(len(result)) > countries.maxResults() {
+	if int64(len(result)) > countries.context.MaxResults {
 		return nil, fmt.Errorf("Too many results")
 	}
 
@@ -154,6 +115,27 @@ func (countries *Countries) GetList(fromCountryCode string, untilCountryCode str
 	}
 
 	return result, nil
+}
+
+// RetrieveFromURL downloads the file into the etc directory
+func (countries *Countries) RetrieveFromURL() error {
+	// Get the data
+	resp, err := http.Get(countries.context.CountriesURL)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	// Create the file
+	out, err := os.Create(countries.context.CountriesCSV)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	// Write the body to file
+	_, err = io.Copy(out, resp.Body)
+	return err
 }
 
 func (countries *Countries) importCSVLine(line []string, lineNumber int) error {
@@ -168,6 +150,14 @@ func (countries *Countries) importCSVLine(line []string, lineNumber int) error {
 		return fmt.Errorf("Countries[%d].CountryCode(%s): %v", lineNumber, line[1], err)
 	}
 
+	// The insert type ommits the ID to prevent race conditions in upserting
+	type insertCountry struct {
+		CountryCode string `bson:"iso-country-code"`
+		CountryName string `bson:"country-name"`
+		Continent   string `bson:"continent"`
+		Wikipedia   string `bson:"wikipedia"`
+	}
+
 	// Build internal representation
 	country := insertCountry{
 		CountryCode: countryCode,
@@ -177,7 +167,7 @@ func (countries *Countries) importCSVLine(line []string, lineNumber int) error {
 	}
 
 	// Dump in mongo
-	_, err = countries.collection.UpdateOne(countries.dbContext(),
+	_, err = countries.collection.UpdateOne(countries.context.DBContext,
 		bson.D{{Key: "iso-country-code", Value: country.CountryCode}},
 		bson.M{"$set": country},
 		options.Update().SetUpsert(true))
@@ -192,19 +182,19 @@ func (countries *Countries) importCSVLine(line []string, lineNumber int) error {
 // ImportCSV imports a list of countries from a CSV-file
 func (countries *Countries) ImportCSV() error {
 	// Open the country.csv file
-	csvFile, err := countries.csvFile()
+	csvFile, err := os.Open(countries.context.CountriesCSV)
 	if err != nil {
 		return err
 	}
 	defer csvFile.Close()
 
 	// Open the logfile
-	_, err = countries.logFile()
+	_, err = countries.context.LogFile("countries")
 	if err != nil {
 		return err
 	}
 
-	countries.logPrint("Start Import")
+	countries.context.LogPrintln("Start Import")
 
 	// Skip the headerline
 	reader := csv.NewReader(bufio.NewReader(csvFile))
@@ -219,7 +209,7 @@ func (countries *Countries) ImportCSV() error {
 	line, err = reader.Read()
 	for err == nil {
 		err = countries.importCSVLine(line, lineNumber)
-		countries.logError(err)
+		countries.context.LogError(err)
 		line, err = reader.Read()
 		lineNumber++
 	}
@@ -228,6 +218,6 @@ func (countries *Countries) ImportCSV() error {
 		return err
 	}
 
-	countries.logPrint("End Import")
+	countries.context.LogPrintln("End Import")
 	return nil
 }

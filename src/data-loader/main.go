@@ -28,6 +28,10 @@ func main() {
 
 	fmt.Println("Loading countries..")
 	countries := countries.NewCountries(context)
+	err = countries.RetrieveFromURL()
+	if err != nil {
+		log.Fatal(err)
+	}
 	err = countries.ImportCSV()
 	if err != nil {
 		log.Fatal(err)
@@ -35,6 +39,10 @@ func main() {
 
 	fmt.Println("Loading regions..")
 	regions := countries.NewRegions()
+	err = regions.RetrieveFromURL()
+	if err != nil {
+		log.Fatal(err)
+	}
 	err = regions.ImportCSV()
 	if err != nil {
 		log.Fatal(err)
@@ -42,6 +50,10 @@ func main() {
 
 	fmt.Println("Loading airports..")
 	airports := airports.NewAirports(context, countries)
+	err = airports.RetrieveFromURL()
+	if err != nil {
+		log.Fatal(err)
+	}
 	err = airports.ImportCSV()
 	if err != nil {
 		log.Fatal(err)
@@ -49,6 +61,10 @@ func main() {
 
 	fmt.Println("Loading runways..")
 	runways := airports.NewRunways()
+	err = runways.RetrieveFromURL()
+	if err != nil {
+		log.Fatal(err)
+	}
 	err = runways.ImportCSV()
 	if err != nil {
 		log.Fatal(err)
@@ -56,6 +72,10 @@ func main() {
 
 	fmt.Println("Loading frequencies..")
 	frequencies := airports.NewFrequencies()
+	err = frequencies.RetrieveFromURL()
+	if err != nil {
+		log.Fatal(err)
+	}
 	err = frequencies.ImportCSV()
 	if err != nil {
 		log.Fatal(err)

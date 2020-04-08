@@ -2,22 +2,23 @@ package airports
 
 import (
 	"bufio"
-	"context"
 	"encoding/csv"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
 
+	"../application"
 	"../datatypes"
 )
 
 // Runways is the representation of the collection of runways. The runways are implemented
 // as an element of the Airport, but it has some methods of it's own.
 type Runways struct {
-	parent *Airports
+	context *application.Context
+	parent  *Airports
 }
 
 // Runway is the database representation of a runway belonging to an Airport
@@ -62,37 +63,31 @@ type RunwayView struct {
 // NewRunways initializes the collection of runways
 func (airports *Airports) NewRunways() *Runways {
 	runways := Runways{
-		parent: airports}
+		context: airports.context,
+		parent: airports,
+	}
 	return &runways
 }
 
-// Some support functions to clean up the code a little
-func (runways *Runways) dbClient() *mongo.Client {
-	return runways.parent.context.DBClient
-}
+// RetrieveFromURL downloads the file into the etc directory
+func (runways *Runways) RetrieveFromURL() error {
+	// Get the data
+	resp, err := http.Get(runways.context.RunwaysURL)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
 
-func (runways *Runways) dbContext() context.Context {
-	return runways.parent.context.DBContext
-}
+	// Create the file
+	out, err := os.Create(runways.context.RunwaysCSV)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
 
-func (runways *Runways) maxResults() int64 {
-	return runways.parent.context.MaxResults
-}
-
-func (runways *Runways) csvFile() (*os.File, error) {
-	return os.Open(runways.parent.context.RunwaysCSV)
-}
-
-func (runways *Runways) logFile() (*os.File, error) {
-	return runways.parent.context.LogFile("runways")
-}
-
-func (runways *Runways) logPrint(s string) {
-	runways.parent.context.LogPrintln(s)
-}
-
-func (runways *Runways) logError(err error) {
-	runways.parent.context.LogError(err)
+	// Write the body to file
+	_, err = io.Copy(out, resp.Body)
+	return err
 }
 
 func (runways *Runways) importCSVLine(lineNumber int, line []string) error {
@@ -235,7 +230,7 @@ func (runways *Runways) importCSVLine(lineNumber int, line []string) error {
 
 	// Dump in mongo
 	_, err = runways.parent.collection.UpdateOne(
-		runways.dbContext(),
+		runways.context.DBContext,
 		bson.D{{Key: "icao-airport-code", Value: airport.AirportCode}},
 		bson.M{"$set": airport})
 
@@ -250,7 +245,7 @@ func (runways *Runways) importCSVLine(lineNumber int, line []string) error {
 func (runways *Runways) ImportCSV() error {
 
 	// Open the airports.csv file
-	csvFile, err := runways.csvFile()
+	csvFile, err := os.Open(runways.context.RunwaysCSV)
 	if err != nil {
 		return err
 	}
@@ -264,11 +259,11 @@ func (runways *Runways) ImportCSV() error {
 	}
 
 	// open the logfile
-	_, err = runways.logFile()
+	_, err = runways.context.LogFile("runways")
 	if err != nil {
 		return err
 	}
-	runways.logPrint("Start Import")
+	runways.context.LogPrintln("Start Import")
 
 	// Read the data
 	// lineNumbers start at 1 and we've done the header
@@ -276,7 +271,7 @@ func (runways *Runways) ImportCSV() error {
 	line, err = reader.Read()
 	for err == nil {
 		err = runways.importCSVLine(lineNumber, line)
-		runways.logError(err)
+		runways.context.LogError(err)
 		line, err = reader.Read()
 		lineNumber++
 	}
@@ -285,7 +280,7 @@ func (runways *Runways) ImportCSV() error {
 		return err
 	}
 
-	runways.logPrint("End Import")
+	runways.context.LogPrintln("End Import")
 
 	return nil
 }

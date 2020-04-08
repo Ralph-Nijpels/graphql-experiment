@@ -2,16 +2,15 @@ package countries
 
 import (
 	"bufio"
-	"context"
 	"encoding/csv"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
-
-	"go.mongodb.org/mongo-driver/mongo"
 
 	"go.mongodb.org/mongo-driver/bson"
 
+	"../application"
 	"../datatypes"
 )
 
@@ -19,7 +18,8 @@ import (
 
 // Regions represents the connection to the database
 type Regions struct {
-	parent *Countries
+	context *application.Context
+	parent  *Countries
 }
 
 // Region is the external representation for an ISO-Region including both a bson (for mongo)
@@ -42,38 +42,32 @@ type RegionView struct {
 // NewRegions establishes the connection to the database
 func (countries *Countries) NewRegions() *Regions {
 	regions := Regions{
-		parent: countries}
+		context: countries.context,
+		parent:  countries,
+	}
 
 	return &regions
 }
 
-// Below some simple support functions to help ease the code
-func (regions *Regions) dbClient() *mongo.Client {
-	return regions.parent.context.DBClient
-}
+// RetrieveFromURL downloads the file into the etc directory
+func (regions *Regions) RetrieveFromURL() error {
+	// Get the data
+	resp, err := http.Get(regions.context.RegionsURL)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
 
-func (regions *Regions) dbContext() context.Context {
-	return regions.parent.context.DBContext
-}
+	// Create the file
+	out, err := os.Create(regions.context.RegionsCSV)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
 
-func (regions *Regions) csvFile() (*os.File, error) {
-	return os.Open(regions.parent.context.RegionsCSV)
-}
-
-func (regions *Regions) maxResults() int64 {
-	return regions.parent.context.MaxResults
-}
-
-func (regions *Regions) logFile() (*os.File, error) {
-	return regions.parent.context.LogFile("regions")
-}
-
-func (regions *Regions) logPrint(s string) {
-	regions.parent.context.LogPrintln(s)
-}
-
-func (regions *Regions) logError(err error) {
-	regions.parent.context.LogError(err)
+	// Write the body to file
+	_, err = io.Copy(out, resp.Body)
+	return err
 }
 
 func (regions *Regions) importCSVLine(line []string, lineNumber int) error {
@@ -115,7 +109,7 @@ func (regions *Regions) importCSVLine(line []string, lineNumber int) error {
 
 	// Dump in mongo
 	_, err = regions.parent.collection.UpdateOne(
-		regions.dbContext(),
+		regions.context.DBContext,
 		bson.D{{Key: "iso-country-code", Value: country.CountryCode}},
 		bson.M{"$set": country})
 
@@ -129,19 +123,19 @@ func (regions *Regions) importCSVLine(line []string, lineNumber int) error {
 // ImportCSV initializes the database from a CSV-file
 func (regions *Regions) ImportCSV() error {
 	// Open the regions.csv file
-	csvFile, err := regions.csvFile()
+	csvFile, err := os.Open(regions.context.RegionsCSV)
 	if err != nil {
 		return err
 	}
 	defer csvFile.Close()
 
 	// Open the logfile
-	_, err = regions.logFile()
+	_, err = regions.context.LogFile("regions")
 	if err != nil {
 		return err
 	}
 
-	regions.logPrint("Start Import")
+	regions.context.LogPrintln("Start Import")
 
 	// Skip the headerline
 	reader := csv.NewReader(bufio.NewReader(csvFile))
@@ -156,7 +150,7 @@ func (regions *Regions) ImportCSV() error {
 	line, err = reader.Read()
 	for err == nil {
 		err = regions.importCSVLine(line, lineNumber)
-		regions.logError(err)
+		regions.context.LogError(err)
 		line, err = reader.Read()
 		lineNumber++
 	}
@@ -165,7 +159,7 @@ func (regions *Regions) ImportCSV() error {
 		return err
 	}
 
-	regions.logPrint("End Import")
+	regions.context.LogPrintln("End Import")
 	return nil
 }
 

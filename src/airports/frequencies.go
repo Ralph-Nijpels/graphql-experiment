@@ -2,22 +2,23 @@ package airports
 
 import (
 	"bufio"
-	"context"
 	"encoding/csv"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
 
+	"../application"
 	"../datatypes"
 )
 
 // Frequencies is the representation of the collection of frequencies as found in
 // import / export tables
 type Frequencies struct {
-	parent *Airports
+	context *application.Context
+	parent  *Airports
 }
 
 // Frequency is the external representation of a single frequency at an airport
@@ -38,37 +39,31 @@ type FrequencyView struct {
 // NewFrequencies initializes the collection of frequencies
 func (airports *Airports) NewFrequencies() *Frequencies {
 	frequencies := Frequencies{
-		parent: airports}
+		context: airports.context,
+		parent: airports,
+	}
 	return &frequencies
 }
 
-// Some support functions to clean up the code a little
-func (frequencies *Frequencies) dbClient() *mongo.Client {
-	return frequencies.parent.context.DBClient
-}
+// RetrieveFromURL downloads the file into the etc directory
+func (frequencies *Frequencies) RetrieveFromURL() error {
+	// Get the data
+	resp, err := http.Get(frequencies.context.FrequenciesURL)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
 
-func (frequencies *Frequencies) dbContext() context.Context {
-	return frequencies.parent.context.DBContext
-}
+	// Create the file
+	out, err := os.Create(frequencies.context.FrequenciesCSV)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
 
-func (frequencies *Frequencies) maxResults() int64 {
-	return frequencies.parent.context.MaxResults
-}
-
-func (frequencies *Frequencies) csvFile() (*os.File, error) {
-	return os.Open(frequencies.parent.context.FrequenciesCSV)
-}
-
-func (frequencies *Frequencies) logFile() (*os.File, error) {
-	return frequencies.parent.context.LogFile("frequencies")
-}
-
-func (frequencies *Frequencies) logPrint(s string) {
-	frequencies.parent.context.LogPrintln(s)
-}
-
-func (frequencies *Frequencies) logError(err error) {
-	frequencies.parent.context.LogError(err)
+	// Write the body to file
+	_, err = io.Copy(out, resp.Body)
+	return err
 }
 
 func (frequencies *Frequencies) importCSVLine(lineNumber int, line []string) error {
@@ -105,7 +100,7 @@ func (frequencies *Frequencies) importCSVLine(lineNumber int, line []string) err
 
 	// Dump in mongo
 	_, err = frequencies.parent.collection.UpdateOne(
-		frequencies.dbContext(),
+		frequencies.context.DBContext,
 		bson.D{{Key: "icao-airport-code", Value: airport.AirportCode}},
 		bson.M{"$set": airport})
 
@@ -120,7 +115,7 @@ func (frequencies *Frequencies) importCSVLine(lineNumber int, line []string) err
 func (frequencies *Frequencies) ImportCSV() error {
 
 	// Open the frequencies.csv file
-	csvFile, err := frequencies.csvFile()
+	csvFile, err := os.Open(frequencies.context.FrequenciesCSV)
 	if err != nil {
 		return err
 	}
@@ -134,11 +129,11 @@ func (frequencies *Frequencies) ImportCSV() error {
 	}
 
 	// open the logfile
-	_, err = frequencies.logFile()
+	_, err = frequencies.context.LogFile("frequencies")
 	if err != nil {
 		return err
 	}
-	frequencies.logPrint("Start Import")
+	frequencies.context.LogPrintln("Start Import")
 
 	// Read the data
 	// lineNumbers start at 1 and we've done the header
@@ -146,7 +141,7 @@ func (frequencies *Frequencies) ImportCSV() error {
 	line, err = reader.Read()
 	for err == nil {
 		err = frequencies.importCSVLine(lineNumber, line)
-		frequencies.logError(err)
+		frequencies.context.LogError(err)
 		line, err = reader.Read()
 		lineNumber++
 	}
@@ -155,7 +150,7 @@ func (frequencies *Frequencies) ImportCSV() error {
 		return err
 	}
 
-	frequencies.logPrint("End Import")
+	frequencies.context.LogPrintln("End Import")
 
 	return nil
 }

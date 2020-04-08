@@ -21,10 +21,15 @@ type Context struct {
 	DBContext      context.Context
 	LogFolder      string
 	MaxResults     int64
+	CountriesURL   string
 	CountriesCSV   string
+	RegionsURL     string
 	RegionsCSV     string
+	AirportsURL    string
 	AirportsCSV    string
+	RunwaysURL     string
 	RunwaysCSV     string
+	FrequenciesURL string
 	FrequenciesCSV string
 }
 
@@ -32,10 +37,15 @@ type Context struct {
 type optionFile struct {
 	Database       string `json:"database"`
 	LogFolder      string `json:"log-folder"`
+	CountriesURL   string `json:"countries-url"`
 	CountriesCSV   string `json:"countries-csv"`
+	RegionsURL     string `json:"regions-url"`
 	RegionsCSV     string `json:"regions-csv"`
+	AirportsURL    string `json:"airports-url"`
 	AirportsCSV    string `json:"airports-csv"`
+	RunwaysURL     string `json:"runways-url"`
 	RunwaysCSV     string `json:"runways-csv"`
+	FrequenciesURL string `json:"frequencies-url"`
 	FrequenciesCSV string `json:"frequencies-csv"`
 	MaxResults     int64  `json:"max-results"`
 }
@@ -87,10 +97,15 @@ func GetContext() (*Context, error) {
 		DBContext:      context.TODO(),
 		LogFolder:      applicationOptions.LogFolder,
 		MaxResults:     applicationOptions.MaxResults,
+		CountriesURL:   applicationOptions.CountriesURL,
 		CountriesCSV:   applicationOptions.CountriesCSV,
+		RegionsURL:     applicationOptions.RegionsURL,
 		RegionsCSV:     applicationOptions.RegionsCSV,
+		AirportsURL:    applicationOptions.AirportsURL,
 		AirportsCSV:    applicationOptions.AirportsCSV,
+		RunwaysURL:     applicationOptions.RunwaysURL,
 		RunwaysCSV:     applicationOptions.RunwaysCSV,
+		FrequenciesURL: applicationOptions.FrequenciesURL,
 		FrequenciesCSV: applicationOptions.FrequenciesCSV}
 
 	return &context, nil
