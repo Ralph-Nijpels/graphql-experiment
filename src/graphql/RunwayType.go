@@ -8,6 +8,71 @@ import (
 	"../airports"
 )
 
+// runwayView expresses a model where the runway is flattened and a back-link to 
+// the airport added to be more suitable for graphql.
+type runwayView struct {
+	AirportCode   string  `json:"icao-airport-code"`
+	RunwayCode    string  `json:"runway-code"`
+	AltRunwayCode string  `json:"alt-runway-code"`
+	Latitude      float64 `json:"latitude,omitempty"`
+	Longitude     float64 `json:"longitude,omitempty"`
+	Elevation     int     `json:"elevation,omitempty"`
+	Heading       int     `json:"heading,omitempty"`
+	Threshold     int     `json:"threshold,omitempty"`
+	Length        int     `json:"length"`
+	Width         int     `json:"width"`
+	Surface       string  `json:"surface"`
+	Lighted       bool    `json:"lighted"`
+	Closed        bool    `json:"closed"`
+}
+
+func asRunwayView(airport *airports.Airport, runway *airports.Runway) []*runwayView {
+	var result []*runwayView
+
+	if len(runway.LowEnd.RunwayCode) > 0 {
+		var runwayView runwayView
+
+		runwayView.AirportCode = airport.AirportCode
+		runwayView.RunwayCode = runway.LowEnd.RunwayCode
+		runwayView.AltRunwayCode = runway.HighEnd.RunwayCode
+		runwayView.Latitude = runway.LowEnd.Latitude
+		runwayView.Longitude = runway.LowEnd.Longitude
+		runwayView.Elevation = runway.LowEnd.Elevation
+		runwayView.Heading = runway.LowEnd.Heading
+		runwayView.Threshold = runway.LowEnd.Threshold
+		runwayView.Length = runway.Length
+		runwayView.Width = runway.Width
+		runwayView.Surface = runway.Surface
+		runwayView.Lighted = runway.Lighted
+		runwayView.Closed = runway.Closed
+
+		result = append(result, &runwayView)
+	}
+
+	if len(runway.HighEnd.RunwayCode) > 0 {
+		var runwayView runwayView
+
+		runwayView.AirportCode = airport.AirportCode
+		runwayView.RunwayCode = runway.HighEnd.RunwayCode
+		runwayView.AltRunwayCode = runway.LowEnd.RunwayCode
+		runwayView.Latitude = runway.HighEnd.Latitude
+		runwayView.Longitude = runway.HighEnd.Longitude
+		runwayView.Elevation = runway.HighEnd.Elevation
+		runwayView.Heading = runway.HighEnd.Heading
+		runwayView.Threshold = runway.HighEnd.Threshold
+		runwayView.Length = runway.Length
+		runwayView.Width = runway.Width
+		runwayView.Surface = runway.Surface
+		runwayView.Lighted = runway.Lighted
+		runwayView.Closed = runway.Closed
+
+		result = append(result, &runwayView)
+	}
+
+	return result
+}
+
+// runwayType is the GraphQL representation of a Runway
 var runwayType = graphql.NewObject(
 	graphql.ObjectConfig{
 		Name: "Runway",
@@ -55,7 +120,7 @@ func addRunwayToAirport() {
 	runwayType.AddFieldConfig("Airport", &graphql.Field{
 		Type: airportType,
 		Resolve: func(p graphql.ResolveParams) (interface{}, error) {
-			runway := p.Source.(*airports.RunwayView)
+			runway := p.Source.(*runwayView)
 
 			result, err := theAirports.GetByAirportCode(runway.AirportCode)
 			if err != nil {
@@ -110,7 +175,7 @@ var runwayQuery = &graphql.Field{
 		}
 
 		for _, runway := range airport.Runways {
-			runwaySides := airports.AsRunwayView(airport, runway)
+			runwaySides := asRunwayView(airport, runway)
 			for _, runwayView := range runwaySides {
 				if runwayView.RunwayCode == runwayCode.(string) {
 					return runwayView, nil
@@ -185,9 +250,9 @@ var runwaysQuery = &graphql.Field{
 		untilLength, hasUntilLength := p.Args["UntilLength"]
 		closed, hasClosed := p.Args["Closed"]
 
-		var result []*airports.RunwayView
+		var result []*runwayView
 		for _, runway := range airport.Runways {
-			runwaySides := airports.AsRunwayView(airport, runway)
+			runwaySides := asRunwayView(airport, runway)
 			for _, runwayView := range runwaySides {
 				var addView = true
 				if hasFromRunwayCode && runwayView.RunwayCode < fromRunwayCode.(string) {

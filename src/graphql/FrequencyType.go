@@ -8,6 +8,26 @@ import (
 	"../airports"
 )
 
+// frequencyView is a representation to help in graphql by adding a back-link to the airport
+type frequencyView struct {
+	AirportCode   string  `json:"icao-airport-code"`
+	FrequencyType string  `json:"frequency-type"`
+	Description   string  `json:"description,omitempty"`
+	Frequency     float64 `json:"frequency-mhz"`
+}
+
+func asFrequencyView(airport *airports.Airport, frequency *airports.Frequency) *frequencyView {
+	var result frequencyView
+
+	result.AirportCode = airport.AirportCode
+	result.FrequencyType = frequency.FrequencyType
+	result.Description = frequency.Description
+	result.Frequency = frequency.Frequency
+
+	return &result
+}
+
+// frequencyType is the graphql representation of a frequency
 var frequencyType = graphql.NewObject(
 	graphql.ObjectConfig{
 		Name: "Frequency",
@@ -28,7 +48,7 @@ func addFrequencyToAirport() {
 	frequencyType.AddFieldConfig("Airport", &graphql.Field{
 		Type: airportType,
 		Resolve: func(p graphql.ResolveParams) (interface{}, error) {
-			frequency := p.Source.(*airports.FrequencyView)
+			frequency := p.Source.(*frequencyView)
 
 			result, err := theAirports.GetByAirportCode(frequency.AirportCode)
 			if err != nil {
@@ -80,7 +100,7 @@ var frequencyQuery = &graphql.Field{
 
 		for _, frequency := range airport.Frequencies {
 			if frequency.FrequencyType == frequencyType {
-				return airports.AsFrequencyView(airport, frequency), nil
+				return asFrequencyView(airport, frequency), nil
 			}
 		}
 
@@ -149,7 +169,7 @@ var frequenciesQuery = &graphql.Field{
 			return nil, fmt.Errorf("Frequencies: %v", err)
 		}
 
-		var result []*airports.FrequencyView
+		var result []*frequencyView
 		for _, airport := range airportList {
 			for _, frequency := range airport.Frequencies {
 				addView := true
@@ -160,7 +180,7 @@ var frequenciesQuery = &graphql.Field{
 					addView = false
 				}
 				if addView {
-					result = append(result, airports.AsFrequencyView(airport, frequency))
+					result = append(result, asFrequencyView(airport, frequency))
 				}
 			}
 		}

@@ -3,9 +3,31 @@ package graphql
 import (
 	"fmt"
 
-	"../countries"
 	"github.com/graphql-go/graphql"
+
+	"../countries"
 )
+
+// regionView is the external representation 'flattened' so it is easier to handle in
+// graphql, for instance for back-linking in the graph
+type regionView struct {
+	CountryCode string `json:"iso-country-code"`
+	RegionCode  string `json:"iso-region-code"`
+	RegionName  string `json:"region-name"`
+	Wikipedia   string `json:"wikipedia,omitempty"`
+}
+
+// asRegionView translates the internal view to the view more suitable for graphql
+func asRegionView(country *countries.Country, region *countries.Region) *regionView {
+	var result regionView
+
+	result.CountryCode = country.CountryCode
+	result.RegionCode = region.RegionCode
+	result.RegionName = region.RegionName
+	result.Wikipedia = region.Wikipedia
+
+	return &result
+}
 
 var regionType = graphql.NewObject(
 	graphql.ObjectConfig{
@@ -27,7 +49,7 @@ func addRegionToCountry() {
 	regionType.AddFieldConfig("Country", &graphql.Field{
 		Type: countryType,
 		Resolve: func(p graphql.ResolveParams) (interface{}, error) {
-			region := p.Source.(*countries.RegionView)
+			region := p.Source.(*regionView)
 
 			result, err := theCountries.GetByCountryCode(region.CountryCode)
 			if err != nil {
@@ -64,7 +86,7 @@ var regionQuery = &graphql.Field{
 		}
 		for _, region := range country.Regions {
 			if region.RegionCode == regionCode.(string) {
-				return countries.AsRegionView(country, region), nil
+				return asRegionView(country, region), nil
 			}
 		}
 		return nil, fmt.Errorf("Region:Not found")
@@ -109,7 +131,7 @@ var regionsQuery = &graphql.Field{
 			untilRegionCode = ""
 		}
 
-		var result []*countries.RegionView
+		var result []*regionView
 		countryList, err := theCountries.GetList(fromCountryCode.(string), untilCountryCode.(string))
 		if err != nil {
 			return nil, fmt.Errorf("Regions: %v", err)
@@ -117,7 +139,7 @@ var regionsQuery = &graphql.Field{
 		for _, country := range countryList {
 			for _, region := range country.Regions {
 				if (!hasFromRegionCode || region.RegionCode >= fromRegionCode.(string)) && (!hasUntilRegionCode || region.RegionCode <= untilRegionCode.(string)) {
-					result = append(result, countries.AsRegionView(country, region))
+					result = append(result, asRegionView(country, region))
 				}
 			}
 		}

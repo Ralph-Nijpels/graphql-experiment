@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"../airports"
-	"../countries"
 	"github.com/graphql-go/graphql"
 )
 
@@ -94,7 +93,7 @@ func addAirportToRegion() {
 			}
 			for _, region := range country.Regions {
 				if region.RegionCode == airport.RegionCode {
-					return countries.AsRegionView(country, region), nil
+					return asRegionView(country, region), nil
 				}
 			}
 			return nil, fmt.Errorf("Airport.Region: Not Found")
@@ -140,9 +139,9 @@ func addAirportToRunway() {
 			untilLength, hasUntilLength := p.Args["UntilLength"]
 			closed, hasClosed := p.Args["Closed"]
 
-			var runways []*airports.RunwayView
+			var runways []*runwayView
 			for _, runway := range airport.Runways {
-				runwayViews := airports.AsRunwayView(airport, runway)
+				runwayViews := asRunwayView(airport, runway)
 				for _, runwayView := range runwayViews {
 					var addView = true
 					if hasFromRunwayCode && runwayView.RunwayCode < fromRunwayCode.(string) {

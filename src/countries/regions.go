@@ -30,15 +30,6 @@ type Region struct {
 	Wikipedia  string `bson:"wikipedia" json:"wikipedia,omitempty"`
 }
 
-// RegionView is the external representation 'flattened' so it is easier to handle in
-// graphql
-type RegionView struct {
-	CountryCode string `json:"iso-country-code"`
-	RegionCode  string `json:"iso-region-code"`
-	RegionName  string `json:"region-name"`
-	Wikipedia   string `json:"wikipedia,omitempty"`
-}
-
 // NewRegions establishes the connection to the database
 func (countries *Countries) NewRegions() *Regions {
 	regions := Regions{
@@ -163,16 +154,3 @@ func (regions *Regions) ImportCSV() error {
 	return nil
 }
 
-// Some support function on the region itself
-
-// AsRegionView translates the internal view to the view more suitable for graphql
-func AsRegionView(country *Country, region *Region) *RegionView {
-	var result RegionView
-
-	result.CountryCode = country.CountryCode
-	result.RegionCode = region.RegionCode
-	result.RegionName = region.RegionName
-	result.Wikipedia = region.Wikipedia
-
-	return &result
-}

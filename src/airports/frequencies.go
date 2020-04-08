@@ -28,13 +28,6 @@ type Frequency struct {
 	Frequency     float64 `bson:"frequency-mhz" json:"frequency-mhz"`
 }
 
-// FrequencyView is a representation to help in graphql
-type FrequencyView struct {
-	AirportCode   string  `json:"icao-airport-code"`
-	FrequencyType string  `json:"frequency-type"`
-	Description   string  `json:"description,omitempty"`
-	Frequency     float64 `json:"frequency-mhz"`
-}
 
 // NewFrequencies initializes the collection of frequencies
 func (airports *Airports) NewFrequencies() *Frequencies {
@@ -153,16 +146,4 @@ func (frequencies *Frequencies) ImportCSV() error {
 	frequencies.context.LogPrintln("End Import")
 
 	return nil
-}
-
-// AsFrequencyView translates the Frequency into a FrequencyView
-func AsFrequencyView(airport *Airport, frequency *Frequency) *FrequencyView {
-	var result FrequencyView
-
-	result.AirportCode = airport.AirportCode
-	result.FrequencyType = frequency.FrequencyType
-	result.Description = frequency.Description
-	result.Frequency = frequency.Frequency
-
-	return &result
 }
