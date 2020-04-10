@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
+
+	"github.com/minio/minio-go"
 
 	"go.mongodb.org/mongo-driver/bson"
 
@@ -49,15 +50,11 @@ func (regions *Regions) RetrieveFromURL() error {
 	}
 	defer resp.Body.Close()
 
-	// Create the file
-	out, err := os.Create(regions.context.RegionsCSV)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
+	// Copy the file to S3
+	s3Client := regions.context.S3Client
+	_, err = s3Client.PutObject("csv", "regions", resp.Body, -1,
+		minio.PutObjectOptions{ContentType: "application/csv"})
 
-	// Write the body to file
-	_, err = io.Copy(out, resp.Body)
 	return err
 }
 
@@ -114,7 +111,10 @@ func (regions *Regions) importCSVLine(line []string, lineNumber int) error {
 // ImportCSV initializes the database from a CSV-file
 func (regions *Regions) ImportCSV() error {
 	// Open the regions.csv file
-	csvFile, err := os.Open(regions.context.RegionsCSV)
+	s3Client := regions.context.S3Client
+	csvFile, err := s3Client.GetObject(
+		"csv", "regions",
+		minio.GetObjectOptions{})
 	if err != nil {
 		return err
 	}
@@ -153,4 +153,3 @@ func (regions *Regions) ImportCSV() error {
 	regions.context.LogPrintln("End Import")
 	return nil
 }
-

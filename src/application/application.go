@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/minio/minio-go"
+
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -17,37 +19,39 @@ import (
 // Context describes the environment of the application including
 // permanent connections and defaults
 type Context struct {
+	S3Client       *minio.Client
 	DBClient       *mongo.Client
 	DBContext      context.Context
 	LogFolder      string
 	MaxResults     int64
 	CountriesURL   string
-	CountriesCSV   string
 	RegionsURL     string
-	RegionsCSV     string
 	AirportsURL    string
-	AirportsCSV    string
 	RunwaysURL     string
-	RunwaysCSV     string
 	FrequenciesURL string
-	FrequenciesCSV string
 }
 
 // Optionfile descibes the content of the options file
-type optionFile struct {
-	Database       string `json:"database"`
-	LogFolder      string `json:"log-folder"`
+type sourceOptions struct {
 	CountriesURL   string `json:"countries-url"`
-	CountriesCSV   string `json:"countries-csv"`
 	RegionsURL     string `json:"regions-url"`
-	RegionsCSV     string `json:"regions-csv"`
 	AirportsURL    string `json:"airports-url"`
-	AirportsCSV    string `json:"airports-csv"`
 	RunwaysURL     string `json:"runways-url"`
-	RunwaysCSV     string `json:"runways-csv"`
 	FrequenciesURL string `json:"frequencies-url"`
-	FrequenciesCSV string `json:"frequencies-csv"`
-	MaxResults     int64  `json:"max-results"`
+}
+
+type storageOptions struct {
+	Server string `json:"server"`
+	Key    string `json:"key"`
+	Secret string `json:"secret"`
+}
+
+type optionFile struct {
+	Source     sourceOptions  `json:"source"`
+	Storage    storageOptions `json:"storage"`
+	Database   string         `json:"database"`
+	LogFolder  string         `json:"log-folder"`
+	MaxResults int64          `json:"max-results"`
 }
 
 func readOptions() (*optionFile, error) {
@@ -76,10 +80,42 @@ func GetContext() (*Context, error) {
 		return nil, err
 	}
 
-	// Set client options
-	clientOptions := options.Client().ApplyURI(applicationOptions.Database)
+	// Connect to S3
+	minioClient, err := minio.New(
+		applicationOptions.Storage.Server,
+		applicationOptions.Storage.Key,
+		applicationOptions.Storage.Secret,
+		false)
+	if err != nil {
+		log.Panicf("Unable to connect to S3-storage: %v\n", err)
+	}
+
+	// Check the csv bucket
+	bucketFound, err := minioClient.BucketExists("csv")
+	if err != nil {
+		log.Panicf("Connection problem S3-storage: %v\n", err)
+	}
+	if !bucketFound {
+		err = minioClient.MakeBucket("csv", "us-east-1")
+		if err != nil {
+			log.Panicf("Connection problem S3-storage: %v\n", err)
+		}
+	}
+
+	// Check the log bucket
+	bucketFound, err = minioClient.BucketExists("log")
+	if err != nil {
+		log.Panicf("Connection problem S3-storage: %v\n", err)
+	}
+	if !bucketFound {
+		err = minioClient.MakeBucket("log", "us-east-1")
+		if err != nil {
+			log.Panicf("Connection problem S3-storage: %v\n", err)
+		}
+	}
 
 	// Connect to MongoDB
+	clientOptions := options.Client().ApplyURI(applicationOptions.Database)
 	client, err := mongo.Connect(context.TODO(), clientOptions)
 	if err != nil {
 		return nil, err
@@ -93,20 +129,16 @@ func GetContext() (*Context, error) {
 
 	// Compose result
 	context := Context{
+		S3Client:       minioClient,
 		DBClient:       client,
 		DBContext:      context.TODO(),
 		LogFolder:      applicationOptions.LogFolder,
 		MaxResults:     applicationOptions.MaxResults,
-		CountriesURL:   applicationOptions.CountriesURL,
-		CountriesCSV:   applicationOptions.CountriesCSV,
-		RegionsURL:     applicationOptions.RegionsURL,
-		RegionsCSV:     applicationOptions.RegionsCSV,
-		AirportsURL:    applicationOptions.AirportsURL,
-		AirportsCSV:    applicationOptions.AirportsCSV,
-		RunwaysURL:     applicationOptions.RunwaysURL,
-		RunwaysCSV:     applicationOptions.RunwaysCSV,
-		FrequenciesURL: applicationOptions.FrequenciesURL,
-		FrequenciesCSV: applicationOptions.FrequenciesCSV}
+		CountriesURL:   applicationOptions.Source.CountriesURL,
+		RegionsURL:     applicationOptions.Source.RegionsURL,
+		AirportsURL:    applicationOptions.Source.AirportsURL,
+		RunwaysURL:     applicationOptions.Source.RunwaysURL,
+		FrequenciesURL: applicationOptions.Source.FrequenciesURL}
 
 	return &context, nil
 

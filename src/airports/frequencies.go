@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
+
+	"github.com/minio/minio-go"
 
 	"go.mongodb.org/mongo-driver/bson"
 
@@ -47,15 +48,11 @@ func (frequencies *Frequencies) RetrieveFromURL() error {
 	}
 	defer resp.Body.Close()
 
-	// Create the file
-	out, err := os.Create(frequencies.context.FrequenciesCSV)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
+	// Copy the file to S3
+	s3Client := frequencies.context.S3Client
+	_, err = s3Client.PutObject("csv", "frequencies", resp.Body, -1,
+		minio.PutObjectOptions{ContentType: "application/csv"})
 
-	// Write the body to file
-	_, err = io.Copy(out, resp.Body)
 	return err
 }
 
@@ -108,7 +105,10 @@ func (frequencies *Frequencies) importCSVLine(lineNumber int, line []string) err
 func (frequencies *Frequencies) ImportCSV() error {
 
 	// Open the frequencies.csv file
-	csvFile, err := os.Open(frequencies.context.FrequenciesCSV)
+	s3Client := frequencies.context.S3Client
+	csvFile, err := s3Client.GetObject(
+		"csv", "frequencies",
+		minio.GetObjectOptions{})
 	if err != nil {
 		return err
 	}

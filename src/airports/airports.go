@@ -5,9 +5,10 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 	"net/http"
+
+	"github.com/minio/minio-go"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -192,15 +193,11 @@ func (airports *Airports) RetrieveFromURL() error {
 	}
 	defer resp.Body.Close()
 
-	// Create the file
-	out, err := os.Create(airports.context.AirportsCSV)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
+	// Copy the file to S3
+	s3Client := airports.context.S3Client
+	_, err = s3Client.PutObject("csv", "airports", resp.Body, -1,
+		minio.PutObjectOptions{ContentType: "application/csv"})
 
-	// Write the body to file
-	_, err = io.Copy(out, resp.Body)
 	return err
 }
 
@@ -315,7 +312,10 @@ func (airports *Airports) importCSVLine(lineNumber int, line []string) error {
 func (airports *Airports) ImportCSV() error {
 
 	// Open the airports.csv file
-	csvFile, err := os.Open(airports.context.AirportsCSV)
+	s3Client := airports.context.S3Client
+	csvFile, err := s3Client.GetObject(
+		"csv", "airports",
+		minio.GetObjectOptions{})
 	if err != nil {
 		return err
 	}

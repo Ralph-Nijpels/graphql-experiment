@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
+
+	"github.com/minio/minio-go"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -126,15 +127,11 @@ func (countries *Countries) RetrieveFromURL() error {
 	}
 	defer resp.Body.Close()
 
-	// Create the file
-	out, err := os.Create(countries.context.CountriesCSV)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
+	// Copy the file to S3
+	s3Client := countries.context.S3Client
+	_, err = s3Client.PutObject("csv", "countries", resp.Body, -1,
+		minio.PutObjectOptions{ContentType: "application/csv"})
 
-	// Write the body to file
-	_, err = io.Copy(out, resp.Body)
 	return err
 }
 
@@ -182,7 +179,9 @@ func (countries *Countries) importCSVLine(line []string, lineNumber int) error {
 // ImportCSV imports a list of countries from a CSV-file
 func (countries *Countries) ImportCSV() error {
 	// Open the country.csv file
-	csvFile, err := os.Open(countries.context.CountriesCSV)
+	s3Client := countries.context.S3Client
+	csvFile, err := s3Client.GetObject("csv", "countries",
+		minio.GetObjectOptions{})
 	if err != nil {
 		return err
 	}

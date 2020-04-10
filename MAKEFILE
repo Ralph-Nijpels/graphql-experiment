@@ -9,6 +9,7 @@ SRC = src
 all: \
 	gorilla-mux \
 	mongo-driver \
+	minio-driver \
 	graphql-driver \
 	$(BIN)\data-loader.exe \
 	$(BIN)\geography-rest.exe
@@ -22,6 +23,10 @@ mongo-driver:
 	echo Mongo-driver..
 	go get go.mongodb.org/mongo-driver/mongo
 
+minio-driver:
+	echo Minio-driver..
+	go get github.com/minio/minio-go
+	
 graphql-driver:
 	echo Graphql-driver..
 	go get github.com/graphql-go/graphql

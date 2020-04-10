@@ -17,7 +17,9 @@ type regionView struct {
 	Wikipedia   string `json:"wikipedia,omitempty"`
 }
 
-// asRegionView translates the internal view to the view more suitable for graphql
+// asRegionView translates the internal view to the view more suitable for graphql:
+// It contains a 'back-link' to the country; perhaps not normal for an optimized
+// storage, but very useful for traversing graphs...
 func asRegionView(country *countries.Country, region *countries.Region) *regionView {
 	var result regionView
 
@@ -29,6 +31,7 @@ func asRegionView(country *countries.Country, region *countries.Region) *regionV
 	return &result
 }
 
+// regionType is the representation of a region in GraphQL itself
 var regionType = graphql.NewObject(
 	graphql.ObjectConfig{
 		Name: "Region",
@@ -45,6 +48,8 @@ var regionType = graphql.NewObject(
 		},
 	})
 
+// addRegionToCountry creates the link to countries seperately otherwise
+// golang starts complaining about circular references.
 func addRegionToCountry() {
 	regionType.AddFieldConfig("Country", &graphql.Field{
 		Type: countryType,

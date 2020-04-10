@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
+
+	"github.com/minio/minio-go"
 
 	"go.mongodb.org/mongo-driver/bson"
 
@@ -60,15 +61,12 @@ func (runways *Runways) RetrieveFromURL() error {
 	}
 	defer resp.Body.Close()
 
-	// Create the file
-	out, err := os.Create(runways.context.RunwaysCSV)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
+	// Copy the file to S3
+	s3Client := runways.context.S3Client
+	_, err = s3Client.PutObject(
+		"csv", "runways", resp.Body, -1,
+		minio.PutObjectOptions{ContentType: "application/csv"})
 
-	// Write the body to file
-	_, err = io.Copy(out, resp.Body)
 	return err
 }
 
@@ -226,8 +224,11 @@ func (runways *Runways) importCSVLine(lineNumber int, line []string) error {
 // ImportCSV imports runways into the airport collection
 func (runways *Runways) ImportCSV() error {
 
-	// Open the airports.csv file
-	csvFile, err := os.Open(runways.context.RunwaysCSV)
+	// Open the runways.csv file
+	s3Client := runways.context.S3Client
+	csvFile, err := s3Client.GetObject(
+		"csv", "runways",
+		minio.GetObjectOptions{})
 	if err != nil {
 		return err
 	}
