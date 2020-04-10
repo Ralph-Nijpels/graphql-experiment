@@ -51,7 +51,7 @@ func (frequencies *Frequencies) RetrieveFromURL() error {
 	// Copy the file to S3
 	s3Client := frequencies.context.S3Client
 	_, err = s3Client.PutObject("csv", "frequencies", resp.Body, -1,
-		minio.PutObjectOptions{ContentType: "application/csv"})
+		minio.PutObjectOptions{ContentType: "text/csv"})
 
 	return err
 }
@@ -126,6 +126,7 @@ func (frequencies *Frequencies) ImportCSV() error {
 	if err != nil {
 		return err
 	}
+	defer frequencies.context.LogClose()
 	frequencies.context.LogPrintln("Start Import")
 
 	// Read the data

@@ -1,13 +1,13 @@
 package application
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"os"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/minio/minio-go"
@@ -22,7 +22,8 @@ type Context struct {
 	S3Client       *minio.Client
 	DBClient       *mongo.Client
 	DBContext      context.Context
-	LogFolder      string
+	logBuffer      *bytes.Buffer
+	logTopic       string
 	MaxResults     int64
 	CountriesURL   string
 	RegionsURL     string
@@ -50,7 +51,6 @@ type optionFile struct {
 	Source     sourceOptions  `json:"source"`
 	Storage    storageOptions `json:"storage"`
 	Database   string         `json:"database"`
-	LogFolder  string         `json:"log-folder"`
 	MaxResults int64          `json:"max-results"`
 }
 
@@ -132,7 +132,6 @@ func GetContext() (*Context, error) {
 		S3Client:       minioClient,
 		DBClient:       client,
 		DBContext:      context.TODO(),
-		LogFolder:      applicationOptions.LogFolder,
 		MaxResults:     applicationOptions.MaxResults,
 		CountriesURL:   applicationOptions.Source.CountriesURL,
 		RegionsURL:     applicationOptions.Source.RegionsURL,
@@ -144,67 +143,14 @@ func GetContext() (*Context, error) {
 
 }
 
-func (context *Context) openLogFolder() (*os.File, error) {
-	logDir, err := os.Open(context.LogFolder)
-	if err != nil {
-		return nil, err
-	}
-
-	logDirStat, err := logDir.Stat()
-	if err != nil {
-		return nil, err
-	}
-	if !logDirStat.IsDir() {
-		return nil, fmt.Errorf("Not a directory")
-	}
-
-	return logDir, nil
-}
-
-func (context *Context) lastLogNumber(logDir *os.File, topic string) (int64, error) {
-	logFileNames, err := logDir.Readdirnames(-1)
-	if err != nil {
-		return 0, err
-	}
-
-	highestLogNumber := int64(0)
-	for _, logFileName := range logFileNames {
-		if strings.HasPrefix(logFileName, topic) && strings.HasSuffix(logFileName, ".log") {
-			logFileParts := strings.Split(strings.TrimSuffix(logFileName, ".log"), "-")
-			if len(logFileParts) == 3 {
-				logFileNumber, _ := strconv.ParseInt(logFileParts[2], 10, 64)
-				if logFileNumber > highestLogNumber {
-					highestLogNumber = logFileNumber
-				}
-			}
-		}
-	}
-
-	return highestLogNumber, nil
-}
-
 // LogFile creates a new logfile for the given topic in the logfolder
-func (context *Context) LogFile(topic string) (*os.File, error) {
+func (context *Context) LogFile(topic string) (io.Writer, error) {
 
-	logDate := time.Now().Format("20060102")
+	context.logBuffer = new(bytes.Buffer)
+	context.logTopic = topic
+	log.SetOutput(context.logBuffer)
 
-	logDir, err := context.openLogFolder()
-	if err != nil {
-		log.Panicf("Could not open log folder: %v\n", err)
-	}
-
-	logFileNumber, err := context.lastLogNumber(logDir, topic)
-	if err != nil {
-		log.Panicf("Could not open log folder: %v\n", err)
-	}
-
-	logFile, err := os.Create(fmt.Sprintf("%s/%s-%s-%04d.log", context.LogFolder, topic, logDate, logFileNumber+1))
-	if err != nil {
-		return nil, err
-	}
-
-	log.SetOutput(logFile)
-	return logFile, err
+	return context.logBuffer, nil
 }
 
 // LogPrintln inserts a message in the logfile
@@ -219,4 +165,23 @@ func (context *Context) LogError(err error) {
 	if err != nil {
 		log.Println(err)
 	}
+}
+
+// LogClose moves the buffer to S3 in one go
+func (context *Context) LogClose() {
+
+	log.SetOutput(os.Stderr)
+
+	logDate := time.Now().Format("20060102-150405")
+	logName := fmt.Sprintf("%s-%s.txt", context.logTopic, logDate)
+
+	s3Client := context.S3Client
+	_, err := s3Client.PutObject("log", logName, context.logBuffer, -1,
+		minio.PutObjectOptions{ContentType: "text/plain"})
+	context.logBuffer = nil
+
+	if err != nil {
+		log.Panicf("Could not write logfile\n")
+	}
+
 }

@@ -12,6 +12,5 @@
         "secret": "minioadmin"
     },
     "database": "mongodb://localhost:27017",
-    "log-folder": "c:\\projects\\graphql-experiment\\etc",
     "max-results": 512
 }

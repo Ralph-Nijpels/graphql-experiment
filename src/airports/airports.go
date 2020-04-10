@@ -196,7 +196,7 @@ func (airports *Airports) RetrieveFromURL() error {
 	// Copy the file to S3
 	s3Client := airports.context.S3Client
 	_, err = s3Client.PutObject("csv", "airports", resp.Body, -1,
-		minio.PutObjectOptions{ContentType: "application/csv"})
+		minio.PutObjectOptions{ContentType: "text/csv"})
 
 	return err
 }
@@ -326,6 +326,7 @@ func (airports *Airports) ImportCSV() error {
 	if err != nil {
 		return err
 	}
+	defer airports.context.LogClose()
 
 	// Skip the headerline
 	reader := csv.NewReader(bufio.NewReader(csvFile))

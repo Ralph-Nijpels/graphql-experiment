@@ -130,7 +130,7 @@ func (countries *Countries) RetrieveFromURL() error {
 	// Copy the file to S3
 	s3Client := countries.context.S3Client
 	_, err = s3Client.PutObject("csv", "countries", resp.Body, -1,
-		minio.PutObjectOptions{ContentType: "application/csv"})
+		minio.PutObjectOptions{ContentType: "text/csv"})
 
 	return err
 }
@@ -192,6 +192,7 @@ func (countries *Countries) ImportCSV() error {
 	if err != nil {
 		return err
 	}
+	defer countries.context.LogClose()
 
 	countries.context.LogPrintln("Start Import")
 

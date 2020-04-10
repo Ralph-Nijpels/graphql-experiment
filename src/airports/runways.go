@@ -65,7 +65,7 @@ func (runways *Runways) RetrieveFromURL() error {
 	s3Client := runways.context.S3Client
 	_, err = s3Client.PutObject(
 		"csv", "runways", resp.Body, -1,
-		minio.PutObjectOptions{ContentType: "application/csv"})
+		minio.PutObjectOptions{ContentType: "text/csv"})
 
 	return err
 }
@@ -246,6 +246,8 @@ func (runways *Runways) ImportCSV() error {
 	if err != nil {
 		return err
 	}
+	defer runways.context.LogClose()
+	
 	runways.context.LogPrintln("Start Import")
 
 	// Read the data
